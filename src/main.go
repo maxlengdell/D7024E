@@ -1,17 +1,19 @@
 package main
 
 import (
-	"fmt"
 	"net"
 
-	d7024e "github.com/maxlengdell/D7024E/d7024e"
+	"github.com/maxlengdell/D7024E/d7024e"
 )
 
 func main() {
-	fmt.Println("hello")
-	d7024e.Listen("0.0.0.0", 8080)
-	//name, err := os.Hostname()
-	ip := getadress()
+	net := d7024e.Network{}
+	localIP := getadress()
+	id := d7024e.NewRandomKademliaID()
+
+	go d7024e.Listen(localIP, 8080)
+	contact := d7024e.NewContact(id, "172.18.0.2")
+	net.SendPingMessage(&contact)
 
 }
 func getadress() string {

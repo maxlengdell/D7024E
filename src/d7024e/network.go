@@ -1,14 +1,29 @@
 package d7024e
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Network struct {
+}
+type Message struct {
+	Name string
+	Body string
+	Time int64
+	/*
+		Structure of network packets
+			m := Message{
+			"ping",
+			"",
+			time.Now().Unix(),
+		}
+	*/
 }
 
 func Listen(ip string, port int) {
@@ -41,26 +56,27 @@ func Listen(ip string, port int) {
 
 func (network *Network) SendPingMessage(contact *Contact) {
 	// contact is assumed to be another node, not self.
-	message := make([]byte, 20)
-	addr := net.UDPAddr{
-		Port: 8080,
-		IP:   net.IP(contact.Address),
-	}
-	l, err := net.ListenUDP("udp", &addr)
+	addr := contact.Address + ":8080"
+	fmt.Println(addr)
+	l, err := net.Dial("udp", addr)
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
 		os.Exit(1)
 	}
-	msg := "ping"
+	m := Message{
+		"ping",
+		"",
+		time.Now().Unix(),
+	}
+	msg, _ := json.Marshal(m)
 	for {
-		_, err := l.WriteToUDP([]byte(msg), &addr)
+		_, err := l.Write([]byte(msg))
 		if err != nil {
-			fmt.Printf("Could not send msg" + msg)
+			fmt.Println("Could not send msg", err)
 		}
-		rlen, remote, err := l.ReadFromUDP(message[:])
-		data := strings.TrimSpace(string(message[:rlen]))
-		fmt.Println("Received: ", data, remote)
-
+		//remote, err := l.Read(message)
+		//data := strings.TrimSpace(string(message))
+		//fmt.Println("Received: ", data, remote)
 	}
 }
 
