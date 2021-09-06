@@ -15,6 +15,7 @@ func Listen(ip string, port int) {
 	// TODO
 	//Port 8080 för ping -> besvara meddelande
 	//Port 4000 för lookup
+	//nc -u IP PORT för att testa denna funktion
 	l, err := net.ListenUDP("udp", &net.UDPAddr{
 		Port: port,
 		IP:   net.ParseIP(ip),
@@ -34,11 +35,33 @@ func Listen(ip string, port int) {
 		}
 		data := strings.TrimSpace(string(message[:rlen]))
 		fmt.Println("Received: ", data, remote)
+		//go handleMessage(data)
 	}
 }
 
 func (network *Network) SendPingMessage(contact *Contact) {
-	// TODO
+	// contact is assumed to be another node, not self.
+	message := make([]byte, 20)
+	addr := net.UDPAddr{
+		Port: 8080,
+		IP:   net.IP(contact.Address),
+	}
+	l, err := net.ListenUDP("udp", &addr)
+	if err != nil {
+		fmt.Println("Error listening:", err.Error())
+		os.Exit(1)
+	}
+	msg := "ping"
+	for {
+		_, err := l.WriteToUDP([]byte(msg), &addr)
+		if err != nil {
+			fmt.Printf("Could not send msg" + msg)
+		}
+		rlen, remote, err := l.ReadFromUDP(message[:])
+		data := strings.TrimSpace(string(message[:rlen]))
+		fmt.Println("Received: ", data, remote)
+
+	}
 }
 
 func (network *Network) SendFindContactMessage(contact *Contact) {
