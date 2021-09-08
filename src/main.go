@@ -3,17 +3,26 @@ package main
 import (
 	"net"
 
-	"github.com/maxlengdell/D7024E/d7024e"
+	d7024e "github.com/maxlengdell/D7024E/d7024e"
 )
 
 func main() {
-	net := d7024e.Network{}
 	localIP := getadress()
-	id := d7024e.NewRandomKademliaID()
+	firstIP := "172.18.0.2"
+	if localIP == firstIP {
+		//If first node in the network, bootstrap
+		//Enter bootstrap sequence
+		_, newContact := d7024e.Bootstrap(localIP, 8080)
+		d7024e.NewRoutingTable(*newContact)
+	} else {
+		_, newContact := d7024e.JoinNetwork(firstIP, localIP, 8080)
+		d7024e.NewRoutingTable(*newContact)
+	}
+	d7024e.Listen(localIP, 8080)
 
-	go d7024e.Listen(localIP, 8080)
-	contact := d7024e.NewContact(id, "172.18.0.2")
-	net.SendPingMessage(&contact)
+	//id := d7024e.NewRandomKademliaID()
+	//contact := d7024e.NewContact(id, "172.18.0.2")
+	//net.SendPingMessage(&contact)
 
 }
 func getadress() string {
