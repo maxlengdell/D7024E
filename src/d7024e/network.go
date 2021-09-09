@@ -118,7 +118,6 @@ func (network *Network) SendPingMessage(contact *Contact) error {
 	}
 	msg, _ := json.Marshal(m)
 	_, writeErr := l.Write(msg)
-	//fmt.Println("RAW TO BE SENT: ", msg)
 
 	if writeErr != nil {
 		fmt.Println("Could not send msg", err)

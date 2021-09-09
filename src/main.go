@@ -13,10 +13,10 @@ func main() {
 		//If first node in the network, bootstrap
 		//Enter bootstrap sequence
 		_, newContact := d7024e.Bootstrap(localIP, 8080)
-		d7024e.NewRoutingTable(*newContact)
+		rt := d7024e.NewRoutingTable(*newContact)
 	} else {
 		_, newContact := d7024e.JoinNetwork(firstIP, localIP, 8080)
-		d7024e.NewRoutingTable(*newContact)
+		rt := d7024e.NewRoutingTable(*newContact)
 	}
 	d7024e.Listen(localIP, 8080)
 
