@@ -1,6 +1,7 @@
 package d7024e
 
 type Kademlia struct {
+	net *Network
 }
 
 func (kademlia *Kademlia) LookupContact(target *Contact) {

@@ -9,16 +9,19 @@ import (
 func main() {
 	localIP := getadress()
 	firstIP := "172.18.0.2"
+	var net *d7024e.Network
 	if localIP == firstIP {
 		//If first node in the network, bootstrap
 		//Enter bootstrap sequence
-		_, newContact := d7024e.Bootstrap(localIP, 8080)
-		rt := d7024e.NewRoutingTable(*newContact)
+		net = d7024e.Bootstrap(localIP, 8080)
+		//rt := d7024e.NewRoutingTable(*myContact)
+
 	} else {
-		_, newContact := d7024e.JoinNetwork(firstIP, localIP, 8080)
-		rt := d7024e.NewRoutingTable(*newContact)
+		net = d7024e.JoinNetwork(firstIP, localIP, 8080)
+		//rt := d7024e.NewRoutingTable(*myContact)
+
 	}
-	d7024e.Listen(localIP, 8080)
+	net.Listen(localIP, 8080)
 
 	//id := d7024e.NewRandomKademliaID()
 	//contact := d7024e.NewContact(id, "172.18.0.2")

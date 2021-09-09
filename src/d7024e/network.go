@@ -9,11 +9,13 @@ import (
 )
 
 type Network struct {
+	self Contact
 }
 type Message struct {
-	Type   string
-	Sender string
-	Body   string
+	Type          string
+	SenderContact Contact
+	Body          string
+
 	/*
 		Structure of network packets
 			m := Message{
@@ -24,7 +26,10 @@ type Message struct {
 	*/
 }
 
-func Listen(ip string, port int) {
+func handleErr() {
+	//TODO
+}
+func (network *Network) Listen(ip string, port int) {
 	// TODO
 	//Port 8080 för ping -> besvara meddelande
 	//Port 4000 för lookup
@@ -40,7 +45,7 @@ func Listen(ip string, port int) {
 	defer l.Close()
 	fmt.Println("Listening on " + ip + ":" + strconv.Itoa(port))
 	for {
-		recv := make([]byte, 100)
+		recv := make([]byte, 2048)
 		n, remoteAddr, err := l.ReadFromUDP(recv)
 		if err != nil {
 			fmt.Println("Error accepting: ", err.Error())
@@ -49,37 +54,39 @@ func Listen(ip string, port int) {
 		var m Message
 		json.Unmarshal([]byte(string(recv[:n])), &m)
 
-		fmt.Println("Received Listen: ", m)
-		go handleMessage(&m, l, remoteAddr)
+		fmt.Printf("\nReceived Listen: %#v \n", m)
+		go network.handleMessage(&m, l, remoteAddr)
 	}
 }
-func handleMessage(m *Message, l *net.UDPConn, remoteAddr *net.UDPAddr) {
+func (network *Network) handleMessage(m *Message, l *net.UDPConn, remoteAddr *net.UDPAddr) {
 	var resp Message
 	switch m.Type {
 	case "ping":
 		resp = Message{
 			"ping",
-			"",
+			NewContact(nil, ""),
 			"ack",
 		}
-
 	}
 	msg, _ := json.Marshal(resp)
+	//fmt.Println("SENDING BACK", network.me, string(msg))
+
 	l.WriteToUDP(msg, remoteAddr)
-	//fmt.Println("SENDING BACK", string(msg), remoteAddr.String())
 }
 
-func Bootstrap(ip string, port int) (network *Network, contact *Contact) {
+func Bootstrap(ip string, port int) (network *Network) {
 	/* 	Create id, contact and network
 	*	This node is the first node of the network.
 	 */
+	//buck := newBucket()
+
 	id := NewRandomKademliaID()
 	myContact := NewContact(id, (ip + ":" + strconv.Itoa(port)))
-	net := Network{}
-	return &net, &myContact
+	net := Network{myContact}
+	return &net
 
 }
-func JoinNetwork(knownIP string, myip string, port int) (network *Network, contact *Contact) {
+func JoinNetwork(knownIP string, myip string, port int) (network *Network) {
 	/*	This Node is about to join a existing network.
 		Create new bucket
 		Create contact for known node
@@ -92,17 +99,21 @@ func JoinNetwork(knownIP string, myip string, port int) (network *Network, conta
 
 	knownContact := NewContact(nil, knownIP+":"+strconv.Itoa(port))
 	myContact := NewContact(NewRandomKademliaID(), (myip + ":" + strconv.Itoa(port)))
-	net := Network{}
-	err := net.SendPingMessage(&knownContact)
+	net := Network{myContact}
+	knownID, err := net.SendPingMessage(&knownContact)
+	net.SendFindContactMessage(&knownContact)
+	//Lookup
 	if err != nil {
-		buck.AddContact(knownContact)
+		bootstrapContact := NewContact(NewKademliaID(knownID), knownIP+":"+strconv.Itoa(port))
+		buck.AddContact(bootstrapContact)
 	}
-	return &net, &myContact
+	fmt.Println("Bucket: ", buck.list.Front())
+	return &net
 }
 
-func (network *Network) SendPingMessage(contact *Contact) error {
+func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 	// contact is assumed to be another node, not self.
-	recv := make([]byte, 60)
+	recv := make([]byte, 2048)
 	addr := contact.Address
 	fmt.Println(addr)
 	l, err := net.Dial("udp", addr)
@@ -113,16 +124,16 @@ func (network *Network) SendPingMessage(contact *Contact) error {
 	}
 	m := Message{
 		"ping",
-		"penis",
+		NewContact(nil, ""),
 		"",
 	}
 	msg, _ := json.Marshal(m)
 	_, writeErr := l.Write(msg)
-
+	//Handle err
 	if writeErr != nil {
 		fmt.Println("Could not send msg", err)
 	} else {
-		fmt.Println("SENT PING TO: " + addr)
+		fmt.Println("SENT PING TO: " + string(msg))
 	}
 
 	for {
@@ -132,14 +143,17 @@ func (network *Network) SendPingMessage(contact *Contact) error {
 
 		fmt.Println("Received ping: ", m)
 		if m.Type == "ping" {
-			return nil
+			//fmt.Println("ID: ", m.SenderContact.ID)
+			return m.SenderContact.ID.String(), nil
 		}
+		break
 	}
-	return writeErr
+	return "", writeErr
 }
 
-func (network *Network) SendFindContactMessage(contact *Contact) {
-	// TODO
+func (network *Network) SendFindContactMessage(knownContact *Contact) {
+	// FIND_NODE request to bootstrap node
+
 }
 
 func (network *Network) SendFindDataMessage(hash string) {
