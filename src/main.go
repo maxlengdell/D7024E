@@ -23,8 +23,9 @@ func main() {
 	}
 	msgChan := make(chan d7024e.InternelMessage)
 	go kademlia.Net.Listen(localIP, 8080, msgChan)
-	kademlia.HandleMessage(msgChan)
+	go kademlia.Net.Listen(localIP, 1010, msgChan)
 
+	kademlia.HandleMessage(msgChan)
 
 	//id := d7024e.NewRandomKademliaID()
 	//contact := d7024e.NewContact(id, "172.18.0.2")

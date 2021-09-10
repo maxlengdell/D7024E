@@ -21,6 +21,7 @@ RUN go build
 WORKDIR /app/src/
 RUN go install .
 RUN go build -o /app/src/docker-run
+WORKDIR /app/
 CMD ["/app/src/docker-run"]
 
 

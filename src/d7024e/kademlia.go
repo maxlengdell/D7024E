@@ -1,4 +1,5 @@
 package d7024e
+
 import (
 	"fmt"
 	"strconv"
@@ -7,6 +8,7 @@ import (
 type Kademlia struct {
 	Net Network
 }
+
 var numberOfParrallellRequests int = 3
 
 func (kademlia *Kademlia) LookupContact(target *Contact) {
@@ -44,17 +46,15 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 		if alive:
 			Add to bucket
 	*/
-	
 
 	knownContact := NewContact(nil, knownIP+":"+strconv.Itoa(port))
 	myContact := NewContact(NewRandomKademliaID(), (myip + ":" + strconv.Itoa(port)))
 
 	table := NewRoutingTable(myContact)
 	net := Network{table}
-
 	knownID, err := net.SendPingMessage(&knownContact)
 
-	fmt.Println("ID",knownID,"ERR",err)
+	fmt.Println("ID", knownID, "ERR", err)
 	//kademlia.Net.SendFindContactMessage(&knownContact)
 	//Lookup
 	if err != nil {
@@ -79,5 +79,6 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternelMessage) {
 		case "StoreData":
 			fmt.Println("StoreData RECIEVED, TODO IMPLEMENTATION")
 		}
+
 	}
 }
