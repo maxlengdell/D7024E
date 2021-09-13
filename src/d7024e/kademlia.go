@@ -2,6 +2,7 @@ package d7024e
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 )
 
@@ -11,8 +12,11 @@ type Kademlia struct {
 
 var numberOfParrallellRequests int = 3
 
-func (kademlia *Kademlia) LookupContact(target *Contact) {
-	fmt.Println("TODO LOOKUPCONTRACT")
+func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr *net.UDPAddr) {
+	fmt.Println("TODO LOOKUPCONTRACT, target contact: ", target, " My id: ")
+	//Locate k closest nodes
+	kademlia.Net.table.FindClosestContacts(target.ID, numberOfParrallellRequests)
+
 	// TODO
 }
 
@@ -55,7 +59,7 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 	knownID, err := net.SendPingMessage(&knownContact)
 
 	fmt.Println("ID", knownID, "ERR", err)
-	//kademlia.Net.SendFindContactMessage(&knownContact)
+	net.SendFindContactMessage(&knownContact)
 	//Lookup
 	if err != nil {
 		bootstrapContact := NewContact(NewKademliaID(knownID), knownIP+":"+strconv.Itoa(port))
@@ -65,19 +69,26 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 	return &kadem
 }
 
-func (kademlia *Kademlia) HandleMessage(msgChan chan InternelMessage) {
+func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 	for {
 		var m = <-msgChan
-		fmt.Println("Internel message recieved:", m.msg.Type)
+		fmt.Println("Internal message recieved:", m.msg.Type)
 		switch m.msg.Type {
 		case "ping":
-			go kademlia.Net.SendPingAckMessage(m.conn, m.remoteAddr)
+			go kademlia.Net.SendPingAckMessage(&m.conn, &m.remoteAddr)
 		case "LookUpNode":
-			go kademlia.LookupContact(&m.msg.TargetContact)
+			go kademlia.LookupContact(&m.msg.TargetContact, &m.conn, &m.remoteAddr)
 		case "LookUpData":
 			fmt.Println("LookUpData RECIEVED, TODO IMPLEMENTATION")
 		case "StoreData":
 			fmt.Println("StoreData RECIEVED, TODO IMPLEMENTATION")
+		case "put":
+			fmt.Println("Store data")
+		case "get":
+			fmt.Println("Get data")
+		case "exit":
+			//Kill network object
+			fmt.Println("Quitting node...")
 		}
 
 	}
