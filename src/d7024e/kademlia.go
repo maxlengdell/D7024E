@@ -19,10 +19,16 @@ func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr
 	contactChan := make(chan Contact)
 
 	neighbours := kademlia.Net.table.FindClosestContacts(target.ID, numberOfParrallellRequests) //3 närmsta grannarna
-	fmt.Println("Neighbours: ", neighbours)
+	kademlia.Net.table.me.CalcDistance(target.ID)
+
+
+	fmt.Println("Neighbours: ",  neighbours)
 	//Check if target contact is closest in neighbours. If so, return target contact.
-	if neighbours[0].ID.Equals(kademlia.Net.table.me.ID) {
-		//return &kademlia.Net.table.me
+	if len(neighbours) == 0 || neighbours[0].ID.Equals(kademlia.Net.table.me.ID) {
+		
+		//Vet inte ifall det är rätt men vill testa... Måste fixa IF:en ovan också, check if im closest
+		kademlia.Net.table.AddContact(*target) 
+		
 		//Skicka tillbaka self
 		m := Message{
 			Type:          "LookUpNode-response",
@@ -35,7 +41,7 @@ func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr
 		for _, node := range neighbours {
 			go kademlia.Net.SendFindContactMessage(target, &node, contactChan)
 		}
-		fmt.Println("Contact channel", <-contactChan)
+		fmt.Println("##########################################Contact channel", <-contactChan)
 	}
 
 	return nil
