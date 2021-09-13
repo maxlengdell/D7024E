@@ -1,31 +1,35 @@
 package main
 
 import (
+	"fmt"
+	"math/rand"
 	"net"
 
 	d7024e "github.com/maxlengdell/D7024E/d7024e"
 )
 
 func main() {
-	localIP := getadress()
-	firstIP := "172.18.0.2"
-	var kademlia *d7024e.Kademlia
-	msgChan := make(chan d7024e.InternalMessage)
-	go d7024e.Listen(localIP, 8080, msgChan) //External comm
-	go d7024e.Listen(localIP, 1010, msgChan) //CLI
+	fmt.Println(d7024e.NewRandomKademliaID(), d7024e.NewRandomKademliaID())
+	fmt.Println(rand.Intn(256))
+	// localIP := getadress()
+	// firstIP := "172.18.0.2"
+	// var kademlia *d7024e.Kademlia
+	// msgChan := make(chan d7024e.InternalMessage)
+	// go d7024e.Listen(localIP, 8080, msgChan) //External comm
+	// go d7024e.Listen(localIP, 1010, msgChan) //CLI
 
-	if localIP == firstIP {
-		//If first node in the network, bootstrap
-		//Enter bootstrap sequence
-		kademlia = d7024e.Bootstrap(localIP, 8080)
-		//rt := d7024e.NewRoutingTable(*myContact)
+	// if localIP == firstIP {
+	// 	//If first node in the network, bootstrap
+	// 	//Enter bootstrap sequence
+	// 	kademlia = d7024e.Bootstrap(localIP, 8080)
+	// 	//rt := d7024e.NewRoutingTable(*myContact)
 
-	} else {
-		kademlia = d7024e.JoinNetwork(firstIP, localIP, 8080)
-		//rt := d7024e.NewRoutingTable(*myContact)
-	}
+	// } else {
+	// 	kademlia = d7024e.JoinNetwork(firstIP, localIP, 8080)
+	// 	//rt := d7024e.NewRoutingTable(*myContact)
+	// }
 
-	kademlia.HandleMessage(msgChan)
+	// kademlia.HandleMessage(msgChan)
 
 	//id := d7024e.NewRandomKademliaID()
 	//contact := d7024e.NewContact(id, "172.18.0.2")

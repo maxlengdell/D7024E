@@ -18,6 +18,7 @@ type Message struct {
 	TargetContact Contact
 	TargetHash    string
 	Data          string
+	ReturnContact Contact
 }
 type InternalMessage struct {
 	msg        Message
@@ -148,7 +149,7 @@ func (network *Network) SendPingAckMessage(l *net.UDPConn, remoteAddr *net.UDPAd
 	l.WriteToUDP(msg, remoteAddr)
 }
 
-func (network *Network) SendFindContactMessage(contact *Contact, knownContact *Contact) Contact { //contact is the contact to "find"
+func (network *Network) SendFindContactMessage(contact *Contact, knownContact *Contact, contactChan chan Contact) { //contact is the contact to "find"
 	// FIND_NODE request to bootstrap node
 	var MessageRecv Message
 	recv := make([]byte, 2048)
@@ -180,10 +181,9 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	json.Unmarshal([]byte(string(recv[:n])), &MessageRecv)
 
 	fmt.Println("Received FIND_NODE response", MessageRecv)
-
+	contactChan <- MessageRecv.ReturnContact
 	//Lyssna efter svar
 	//Returnera grannar
-	return *contact
 }
 
 func (network *Network) SendFindDataMessage(hash string) {

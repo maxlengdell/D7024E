@@ -1,6 +1,7 @@
 package d7024e
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -18,14 +19,25 @@ func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr
 	contactChan := make(chan Contact)
 
 	neighbours := kademlia.Net.table.FindClosestContacts(target.ID, numberOfParrallellRequests) //3 närmsta grannarna
+	fmt.Println("Neighbours: ", neighbours)
 	//Check if target contact is closest in neighbours. If so, return target contact.
 	if neighbours[0].ID.Equals(kademlia.Net.table.me.ID) {
-		return &kademlia.Net.table.me
+		//return &kademlia.Net.table.me
+		//Skicka tillbaka self
+		m := Message{
+			Type:          "LookUpNode-response",
+			SenderContact: kademlia.Net.table.me,
+			ReturnContact: kademlia.Net.table.me,
+		}
+		msg, _ := json.Marshal(m)
+		conn.WriteToUDP(msg, addr)
 	} else {
 		for _, node := range neighbours {
-			contactChan <- kademlia.Net.SendFindContactMessage(target, &node)
+			go kademlia.Net.SendFindContactMessage(target, &node, contactChan)
 		}
+		fmt.Println("Contact channel", <-contactChan)
 	}
+
 	return nil
 }
 
@@ -43,7 +55,7 @@ func Bootstrap(ip string, port int) (kademlia *Kademlia) {
 	 */
 	id := NewRandomKademliaID()
 	myContact := NewContact(id, (ip + ":" + strconv.Itoa(port)))
-
+	fmt.Println("My id: ", myContact.ID.String())
 	table := NewRoutingTable(myContact)
 	net := Network{table}
 	kadem := Kademlia{net}
@@ -62,7 +74,7 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 
 	knownContact := NewContact(nil, knownIP+":"+strconv.Itoa(port))
 	myContact := NewContact(NewRandomKademliaID(), (myip + ":" + strconv.Itoa(port)))
-
+	fmt.Println("My id: ", myContact.ID.String())
 	table := NewRoutingTable(myContact)
 	net := Network{table}
 	knownID, err := net.SendPingMessage(&knownContact)
@@ -73,9 +85,9 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 		net.table.AddContact(bootstrapContact)
 	}
 	fmt.Println("Known contact node: ", bootstrapContact)
-
-	net.SendFindContactMessage(&myContact, &knownContact)
-
+	contactChan := make(chan Contact)
+	net.SendFindContactMessage(&myContact, &knownContact, contactChan)
+	fmt.Println("Join network contact chan", <-contactChan)
 	//Lookup
 
 	kadem := Kademlia{net}
