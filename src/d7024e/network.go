@@ -15,9 +15,9 @@ type Network struct {
 type Message struct {
 	Type          string
 	SenderContact Contact
-	TargetContact Contact `json:"omitempty"`
-	TargetHash    string  `json:"omitempty"`
-	Data          string  `json:"omitempty"`
+	TargetContact Contact
+	TargetHash    string
+	Data          string
 }
 type InternalMessage struct {
 	msg        Message
@@ -111,7 +111,7 @@ func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 	}
 	m := Message{
 		Type:          "ping",
-		SenderContact: NewContact(nil, ""),
+		SenderContact: network.table.me,
 		Data:          "",
 	}
 	msg, _ := json.Marshal(m)
@@ -120,7 +120,7 @@ func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 	if writeErr != nil {
 		fmt.Println("Could not send msg", err)
 	} else {
-		fmt.Println("SENT PING TO: " + m.SenderContact.Address)
+		fmt.Println("SENT PING TO: " + addr)
 	}
 
 	for {
@@ -131,7 +131,7 @@ func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 		fmt.Println("Confirmed alive")
 		if m.Type == "ping" {
 			fmt.Println("ID: not set", m.SenderContact.ID)
-			return "", nil
+			return m.SenderContact.ID.String(), nil
 		}
 		break
 	}
@@ -148,11 +148,14 @@ func (network *Network) SendPingAckMessage(l *net.UDPConn, remoteAddr *net.UDPAd
 	l.WriteToUDP(msg, remoteAddr)
 }
 
-func (network *Network) SendFindContactMessage(contact *Contact) { //contact is the contact to "find"
+func (network *Network) SendFindContactMessage(contact *Contact, knownContact *Contact) Contact { //contact is the contact to "find"
 	// FIND_NODE request to bootstrap node
-	addr := contact.Address
-	fmt.Println("SENDING FIND CONTACT", contact)
-	l, err := net.Dial("udp", addr)
+	var MessageRecv Message
+	recv := make([]byte, 2048)
+
+	fmt.Println("SENDING FIND CONTACT", knownContact, contact.ID)
+
+	l, err := net.Dial("udp", knownContact.Address)
 	defer l.Close()
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
@@ -160,8 +163,8 @@ func (network *Network) SendFindContactMessage(contact *Contact) { //contact is 
 	}
 	m := Message{
 		Type:          "LookUpNode",
-		SenderContact: network.table.me,
-		TargetContact: *contact,
+		SenderContact: network.table.me, //Self
+		TargetContact: *contact,         //Bootstrap node
 	}
 	msg, _ := json.Marshal(m)
 	_, writeErr := l.Write(msg)
@@ -169,8 +172,18 @@ func (network *Network) SendFindContactMessage(contact *Contact) { //contact is 
 	if writeErr != nil {
 		fmt.Println("Could not send msg", err)
 	} else {
-		fmt.Println("SENT LOOKUPNODE: " + string(msg) + " TO : " + addr)
+		fmt.Println("SENT LOOKUPNODE: "+string(msg)+" TO : ", knownContact)
 	}
+	//**Listen for response**
+	n, _ := l.Read(recv)
+
+	json.Unmarshal([]byte(string(recv[:n])), &MessageRecv)
+
+	fmt.Println("Received FIND_NODE response", MessageRecv)
+
+	//Lyssna efter svar
+	//Returnera grannar
+	return *contact
 }
 
 func (network *Network) SendFindDataMessage(hash string) {
