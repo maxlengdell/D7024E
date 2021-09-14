@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+
 	//"strconv"
 	"strings"
 )
@@ -153,7 +154,7 @@ func ContactConnection(contact *Contact) (*net.UDPConn, error) {
 // SendMessage opens a network connection to the contact and sends the given
 // message over that connection, then it returns the response Message. The
 // connection is closed. This function blocks while waiting for the response.
-func SendMessage(contact *Contact, msg Message) (Message, error) {	// TODO: return connection?
+func SendMessage(contact *Contact, msg Message) (Message, error) { // TODO: return connection?
 	conn, err := ContactConnection(contact)
 	defer conn.Close()
 	if err != nil {
@@ -170,6 +171,18 @@ func SendMessage(contact *Contact, msg Message) (Message, error) {	// TODO: retu
 	var m Message
 	json.Unmarshal(response, &m)
 	return m, nil
+}
+
+// Sending self contact
+func (network *Network) SendContactNode(conn *net.UDPConn, returnContact Contact) {
+	m := Message{
+		Type:          "LookUpNode-response",
+		SenderContact: network.table.me,
+		ReturnContact: returnContact,
+	}
+	msg, _ := json.Marshal(m)
+	SendJSONMessage(conn, msg)
+
 }
 
 // SendJSONMessage sends a JSON-encoded message on the given connection and
