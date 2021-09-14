@@ -129,7 +129,7 @@ func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 		var m Message
 		json.Unmarshal([]byte(string(recv[:n])), &m)
 
-		fmt.Println("Confirmed alive",m)
+		fmt.Println("Confirmed alive", m)
 		if m.Type == "ping" {
 			fmt.Println("ID: not set", m.SenderContact.ID)
 			return m.SenderContact.ID.String(), nil
@@ -154,7 +154,7 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	var MessageRecv Message
 	recv := make([]byte, 2048)
 
-	fmt.Println("SENDING FIND CONTACT", knownContact, contact.ID)
+	//fmt.Println("SENDING FIND CONTACT", knownContact, contact.ID)
 
 	l, err := net.Dial("udp", knownContact.Address)
 	defer l.Close()
@@ -180,7 +180,7 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 
 	json.Unmarshal([]byte(string(recv[:n])), &MessageRecv)
 
-	fmt.Println("Received FIND_NODE response", MessageRecv)
+	fmt.Println("Received FIND_NODE response", MessageRecv, contactChan)
 	contactChan <- MessageRecv.ReturnContact
 	//Lyssna efter svar
 	//Returnera grannar
