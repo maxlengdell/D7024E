@@ -56,7 +56,9 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 
 	table := NewRoutingTable(myContact)
 	net := Network{table}
-	knownID, err := net.SendPingMessage(&knownContact)
+	//knownID, err := net.SendPingMessage(&knownContact)
+	_, err := SendPingMessage(&knownContact)
+	knownID := ""
 
 	fmt.Println("ID", knownID, "ERR", err)
 	net.SendFindContactMessage(&knownContact)
