@@ -49,7 +49,8 @@ func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr
 			ReturnContact: returnContact,
 		}
 		msg, _ := json.Marshal(m)
-		conn.WriteToUDP(msg, returnContact.Address)
+		udpConn, _ := ContactUDPAddress(&returnContact)
+		conn.WriteToUDP(msg, udpConn)
 		fmt.Println("##########################################Contact channel: ", string(msg))
 	}
 
