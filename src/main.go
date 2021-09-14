@@ -29,7 +29,7 @@ func main() {
 	kademlia.HandleMessage(msgChan)
 
 	//id := d7024e.NewRandomKademliaID()
-	//contact := d7024e.NewContact(id, "172.18.0.2")
+	//Contact := d7024e.NewContact(id, "172.18.0.2")
 	//net.SendPingMessage(&contact)
 
 }
