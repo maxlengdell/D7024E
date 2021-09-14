@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"strings"
 
@@ -25,6 +26,7 @@ func main() {
 		kademlia = d7024e.JoinNetwork(firstIP, localIP, 8080)
 		//rt := d7024e.NewRoutingTable(*myContact)
 	}
+	fmt.Println("CONTACTS: ", len(kademlia.Net.table.buckets))
 
 	kademlia.HandleMessage(msgChan)
 
@@ -37,7 +39,7 @@ func getadress() string {
 	//iface, _ := net.InterfaceByName("eth0")
 	ifaces, _ := net.Interfaces()
 	for _, iface := range ifaces {
-		if strings.HasPrefix(iface.Name, "lo") {	// TODO: Figure out how to test iface.Flags
+		if strings.HasPrefix(iface.Name, "lo") { // TODO: Figure out how to test iface.Flags
 			continue // Skip loopback
 		}
 		addr, _ := iface.Addrs()

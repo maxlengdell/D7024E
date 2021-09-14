@@ -1,7 +1,6 @@
 package d7024e
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -22,37 +21,58 @@ func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr
 	kademlia.Net.table.me.CalcDistance(target.ID)
 
 	fmt.Println("Neighbours: ", neighbours)
-	//Check if target contact is closest in neighbours. If so, return target contact.
-	if len(neighbours) == 0 || kademlia.Net.table.me.distance.Less(neighbours[0].distance) {
+	if len(neighbours) == 0 {
+		kademlia.Net.SendContactNode(conn, kademlia.Net.table.me)
 
-		//Vet inte ifall det är rätt men vill testa... Måste fixa IF:en ovan också, check if im closest
-		kademlia.Net.table.AddContact(*target)
-
-		//Skicka tillbaka self
-		m := Message{
-			Type:          "LookUpNode-response",
-			SenderContact: kademlia.Net.table.me,
-			ReturnContact: kademlia.Net.table.me,
-		}
-		msg, _ := json.Marshal(m)
-		conn.WriteToUDP(msg, addr)
-	} else {
-		for i, node := range neighbours {
+	}
+	for i, node := range neighbours {
+		//If neighbour is further from target then self, -> return self
+		//else return neighbour
+		if kademlia.Net.table.me.distance.Less(node.distance) {
+			kademlia.Net.table.AddContact(*target)
+			kademlia.Net.SendContactNode(conn, kademlia.Net.table.me)
+			break
+		} else {
 			fmt.Println("go routine: ", i)
 			go kademlia.Net.SendFindContactMessage(target, &node, contactChan)
+
+			returnContact := <-contactChan
+
+			kademlia.Net.SendContactNode(conn, returnContact)
+			fmt.Println("##########################################Contact channel: ", returnContact, conn)
 		}
-		fmt.Println("Kad lookup")
-		returnContact := <-contactChan
-		m := Message{
-			Type:          "LookUpNode-response",
-			SenderContact: kademlia.Net.table.me,
-			ReturnContact: returnContact,
-		}
-		msg, _ := json.Marshal(m)
-		udpConn, _ := ContactUDPAddress(&returnContact)
-		conn.WriteToUDP(msg, udpConn)
-		fmt.Println("##########################################Contact channel: ", string(msg))
 	}
+	// //Check if target contact is closest in neighbours. If so, return target contact.
+	// if len(neighbours) == 0 || kademlia.Net.table.me.distance.Less(neighbours[0].distance) {
+
+	// 	//Vet inte ifall det är rätt men vill testa... Måste fixa IF:en ovan också, check if im closest
+	// 	kademlia.Net.table.AddContact(*target)
+
+	// 	//Skicka tillbaka self
+	// 	m := Message{
+	// 		Type:          "LookUpNode-response",
+	// 		SenderContact: kademlia.Net.table.me,
+	// 		ReturnContact: kademlia.Net.table.me,
+	// 	}
+	// 	msg, _ := json.Marshal(m)
+	// 	conn.WriteToUDP(msg, addr)
+	// } else {
+	// 	for i, node := range neighbours {
+	// 		fmt.Println("go routine: ", i)
+	// 		go kademlia.Net.SendFindContactMessage(target, &node, contactChan)
+	// 	}
+	// 	fmt.Println("Kad lookup")
+	// 	returnContact := <-contactChan
+	// 	m := Message{
+	// 		Type:          "LookUpNode-response",
+	// 		SenderContact: kademlia.Net.table.me,
+	// 		ReturnContact: returnContact,
+	// 	}
+	// 	msg, _ := json.Marshal(m)
+	// 	udpConn, _ := ContactUDPAddress(&returnContact)
+	// 	conn.WriteToUDP(msg, udpConn)
+	// 	fmt.Println("##########################################Contact channel: ", string(msg))
+	// }
 
 	return nil
 }
@@ -93,9 +113,9 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 	fmt.Println("My id: ", myContact.ID.String())
 	table := NewRoutingTable(myContact)
 	net := Network{table}
-	//knownID, err := net.SendPingMessage(&knownContact)
-	_, err := SendPingMessage(&knownContact)
-	knownID := ""
+	knownID, err := net.SendPingMessage(&knownContact)
+	//_, err := SendPingMessage(&knownContact)
+	//knownID := ""
 
 	bootstrapContact := NewContact(NewKademliaID(knownID), knownIP+":"+strconv.Itoa(port))
 	if err == nil {
@@ -105,7 +125,6 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 	contactChan := make(chan Contact, numberOfParrallellRequests)
 	net.SendFindContactMessage(&myContact, &knownContact, contactChan)
 	fmt.Println("Join network contact chan", <-contactChan)
-	//Lookup
 
 	kadem := Kademlia{net}
 	return &kadem
