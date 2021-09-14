@@ -61,6 +61,7 @@ func ShovelMessages(conn *net.UDPConn, msgChan chan InternalMessage) error {
 	return nil
 }
 
+// TODO: Replace with GetNetworkMessageChannel and ShovelMessages??
 func Listen(ip string, port int, msgChan chan InternalMessage) error {
 	// TODO
 	//Port 8080 för ping -> besvara meddelande
@@ -150,30 +151,38 @@ func ContactConnection(contact *Contact) (*net.UDPConn, error) {
 }
 
 // SendMessage opens a network connection to the contact and sends the given
-// message over that connection. The connection is closed.
-func SendMessage(contact *Contact, msg Message) error {	// TODO: return connection?
+// message over that connection, then it returns the response Message. The
+// connection is closed. This function blocks while waiting for the response.
+func SendMessage(contact *Contact, msg Message) (Message, error) {	// TODO: return connection?
 	conn, err := ContactConnection(contact)
 	defer conn.Close()
 	if err != nil {
 		fmt.Errorf("Failed to open connection to %v: %v", contact, err)
-		return err
+		return Message{}, err
 	}
 	jsonMsg, err := json.Marshal(msg)
 	if err != nil {
 		fmt.Errorf("Could not convert Message %v to JSON: %v", msg, err)
-		return err
+		return Message{}, err
 	}
-	return SendJSONMessage(conn, jsonMsg)
+	//return SendJSONMessage(conn, jsonMsg)
+	response, _ := SendJSONMessage(conn, jsonMsg)
+	var m Message
+	json.Unmarshal(response, &m)
+	return m, nil
 }
 
-// TODO: Also wait for (and return) a response?
-// SendJSONMessage sends a JSON-encoded message on the given connection.
-// This function does not close the connection.
-func SendJSONMessage(conn *net.UDPConn, msg []byte) error {
+// SendJSONMessage sends a JSON-encoded message on the given connection and
+// then returns the (possibly JSON-encoded) response.
+// This function does not close the connection. This function blocks while
+// waiting for the response.
+func SendJSONMessage(conn *net.UDPConn, msg []byte) ([]byte, error) {
 	_, err := conn.Write(msg)
-	return err
+	response := make([]byte, 2048)
+	return response, err
 }
 
+// PingMessage takes a contact and returns a ping Message.
 func PingMessage(contact *Contact) Message {
 	return Message{
 		Type:          "ping",
@@ -182,7 +191,10 @@ func PingMessage(contact *Contact) Message {
 	}
 }
 
-func SendPingMessage(contact *Contact) error {
+// SendPingMessage sends a ping Message to the given contact and then
+// returns the response message. This function blocks while waiting for
+// the response.
+func SendPingMessage(contact *Contact) (Message, error) {
 	msg := PingMessage(contact)
 	return SendMessage(contact, msg)
 }

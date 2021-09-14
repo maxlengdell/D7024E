@@ -93,7 +93,9 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 	fmt.Println("My id: ", myContact.ID.String())
 	table := NewRoutingTable(myContact)
 	net := Network{table}
-	knownID, err := net.SendPingMessage(&knownContact)
+	//knownID, err := net.SendPingMessage(&knownContact)
+	_, err := SendPingMessage(&knownContact)
+	knownID := ""
 
 	bootstrapContact := NewContact(NewKademliaID(knownID), knownIP+":"+strconv.Itoa(port))
 	if err == nil {
