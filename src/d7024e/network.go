@@ -174,15 +174,21 @@ func SendMessage(contact *Contact, msg Message) (Message, error) { // TODO: retu
 }
 
 // Sending self contact
-func (network *Network) SendContactNode(conn *net.UDPConn, returnContact Contact) {
+func (network *Network) SendContactNode(conn *net.UDPConn, dest *net.UDPAddr, returnContact Contact) {
 	m := Message{
 		Type:          "LookUpNode-response",
 		SenderContact: network.table.me,
 		ReturnContact: returnContact,
 	}
 	msg, _ := json.Marshal(m)
-	SendJSONMessage(conn, msg)
 
+	SendJSONViaUDP(conn, dest, msg)
+
+}
+func SendJSONViaUDP(conn *net.UDPConn, dest *net.UDPAddr, msg []byte) error {
+	_, err := conn.WriteToUDP(msg, dest)
+	//fmt.Println("Connection: ", msg, " TO: ", dest)
+	return err
 }
 
 // SendJSONMessage sends a JSON-encoded message on the given connection and
@@ -191,6 +197,7 @@ func (network *Network) SendContactNode(conn *net.UDPConn, returnContact Contact
 // waiting for the response.
 func SendJSONMessage(conn *net.UDPConn, msg []byte) ([]byte, error) {
 	_, err := conn.Write(msg)
+	fmt.Println("Connection: ", conn.LocalAddr(), conn.RemoteAddr())
 	response := make([]byte, 2048)
 	return response, err
 }

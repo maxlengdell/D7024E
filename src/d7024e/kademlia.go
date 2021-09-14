@@ -22,58 +22,31 @@ func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr
 
 	fmt.Println("Neighbours: ", neighbours)
 	if len(neighbours) == 0 {
-		kademlia.Net.SendContactNode(conn, kademlia.Net.table.me)
-
+		kademlia.Net.table.AddContact(*target)
+		go kademlia.Net.SendContactNode(conn, addr, kademlia.Net.table.me)
+		fmt.Println("NO NEIGHBOURS!!")
 	}
 	for i, node := range neighbours {
 		//If neighbour is further from target then self, -> return self
 		//else return neighbour
+
 		if kademlia.Net.table.me.distance.Less(node.distance) {
+			fmt.Println("WE ARE CLOSER TO TARGET THEN: ", node)
+
 			kademlia.Net.table.AddContact(*target)
-			kademlia.Net.SendContactNode(conn, kademlia.Net.table.me)
+			go kademlia.Net.SendContactNode(conn, addr, kademlia.Net.table.me)
 			break
 		} else {
 			fmt.Println("go routine: ", i)
 			go kademlia.Net.SendFindContactMessage(target, &node, contactChan)
-
 			returnContact := <-contactChan
+			fmt.Println("Return contact: ", returnContact)
+			go kademlia.Net.SendContactNode(conn, addr, returnContact)
 
-			kademlia.Net.SendContactNode(conn, returnContact)
-			fmt.Println("##########################################Contact channel: ", returnContact, conn)
+			fmt.Println("##########################################Contact channel: ", returnContact, conn, cap(kademlia.Net.table.buckets))
 		}
 	}
-	// //Check if target contact is closest in neighbours. If so, return target contact.
-	// if len(neighbours) == 0 || kademlia.Net.table.me.distance.Less(neighbours[0].distance) {
-
-	// 	//Vet inte ifall det är rätt men vill testa... Måste fixa IF:en ovan också, check if im closest
-	// 	kademlia.Net.table.AddContact(*target)
-
-	// 	//Skicka tillbaka self
-	// 	m := Message{
-	// 		Type:          "LookUpNode-response",
-	// 		SenderContact: kademlia.Net.table.me,
-	// 		ReturnContact: kademlia.Net.table.me,
-	// 	}
-	// 	msg, _ := json.Marshal(m)
-	// 	conn.WriteToUDP(msg, addr)
-	// } else {
-	// 	for i, node := range neighbours {
-	// 		fmt.Println("go routine: ", i)
-	// 		go kademlia.Net.SendFindContactMessage(target, &node, contactChan)
-	// 	}
-	// 	fmt.Println("Kad lookup")
-	// 	returnContact := <-contactChan
-	// 	m := Message{
-	// 		Type:          "LookUpNode-response",
-	// 		SenderContact: kademlia.Net.table.me,
-	// 		ReturnContact: returnContact,
-	// 	}
-	// 	msg, _ := json.Marshal(m)
-	// 	udpConn, _ := ContactUDPAddress(&returnContact)
-	// 	conn.WriteToUDP(msg, udpConn)
-	// 	fmt.Println("##########################################Contact channel: ", string(msg))
-	// }
-
+	fmt.Println("NUMBER OF CONTACTS IN RT: ", len(kademlia.Net.table.buckets))
 	return nil
 }
 
@@ -116,6 +89,7 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 	knownID, err := net.SendPingMessage(&knownContact)
 	//_, err := SendPingMessage(&knownContact)
 	//knownID := ""
+	fmt.Println("Known ID: ", knownID)
 
 	bootstrapContact := NewContact(NewKademliaID(knownID), knownIP+":"+strconv.Itoa(port))
 	if err == nil {
