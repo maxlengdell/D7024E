@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
+	//"strconv"
 	"strings"
 )
 
 type Network struct {
 	table *RoutingTable
 }
+
 type Message struct {
 	Type          string
 	SenderContact Contact
@@ -19,6 +20,7 @@ type Message struct {
 	TargetHash    string  `json:"omitempty"`
 	Data          string  `json:"omitempty"`
 }
+
 type InternalMessage struct {
 	msg        Message
 	conn       net.UDPConn
@@ -33,7 +35,32 @@ func handleErr(err error) {
 	}
 
 }
-func Listen(ip string, port int, msgChan chan InternalMessage) {
+
+func GetNetworkMessageChannel(port int) (chan InternalMessage, error) {
+	msgChan := make(chan InternalMessage)
+	return msgChan, nil
+}
+
+func ShovelMessages(conn *net.UDPConn, msgChan chan InternalMessage) error {
+	recv := make([]byte, 2048)
+	for {
+		n, remoteAddr, err := conn.ReadFromUDP(recv)
+		if err != nil {
+			fmt.Errorf("Failed to read from connection: %v", err)
+			return err
+		}
+		var m Message
+		err = json.Unmarshal([]byte(string(recv[:n])), &m)
+		if err != nil {
+			// FIXME: assuming that unmarshal failure means CLI command.
+			m = cliParser(string(recv[:n]))
+		}
+		msgChan <- InternalMessage{m, *conn, *remoteAddr}
+	}
+	return nil
+}
+
+func Listen(ip string, port int, msgChan chan InternalMessage) error {
 	// TODO
 	//Port 8080 för ping -> besvara meddelande
 	//Port 4000 för lookup
@@ -44,11 +71,14 @@ func Listen(ip string, port int, msgChan chan InternalMessage) {
 		IP:   net.ParseIP(ip),
 	})
 	if err != nil {
-		fmt.Println("Error listening:", err.Error())
+		//fmt.Println("Error listening:", err.Error())
+		fmt.Errorf("Error listening: %v", err)
+		return err
 		//os.Exit(1)
 	}
 	defer l.Close()
-	fmt.Println("Listening on " + ip + ":" + strconv.Itoa(port))
+	//fmt.Println("Listening on " + ip + ":" + strconv.Itoa(port))
+	fmt.Printf("Listening on %v:%d\n", ip, port)
 	for {
 		recv := make([]byte, 2048)
 		n, remoteAddr, err := l.ReadFromUDP(recv)
@@ -67,7 +97,9 @@ func Listen(ip string, port int, msgChan chan InternalMessage) {
 		fmt.Printf("\nReceived Listen: %#v \n", m)
 		msgChan <- InternalMessage{m, *l, *remoteAddr}
 	}
+	return nil
 }
+
 func cliParser(msg string) Message {
 	fmt.Println("Incoming", msg)
 	var resp Message
@@ -96,6 +128,62 @@ func cliParser(msg string) Message {
 		}
 	}
 	return resp
+}
+
+// ContactConnection converts a Contact to a UDPAddr.
+func ContactUDPAddress(contact *Contact) (*net.UDPAddr, error) {
+	addr := contact.Address
+	return net.ResolveUDPAddr("udp", addr)
+}
+
+// ContactConnection returns a network connection to the contact.
+// The caller is responsible for closing the connection when done.
+func ContactConnection(contact *Contact) (*net.UDPConn, error) {
+	addr, err := ContactUDPAddress(contact)
+	if err != nil {
+		fmt.Errorf("Could not get the UDP address of contact %v: %v", contact, err)
+		return nil, err
+	}
+	conn, err := net.DialUDP("udp", nil, addr)
+	return conn, err
+}
+
+// SendMessage opens a network connection to the contact and sends the given
+// message over that connection. The connection is closed.
+func SendMessage(contact *Contact, msg Message) error {	// TODO: return connection?
+	conn, err := ContactConnection(contact)
+	defer conn.Close()
+	if err != nil {
+		fmt.Errorf("Failed to open connection to %v: %v", contact, err)
+		return err
+	}
+	jsonMsg, err := json.Marshal(msg)
+	if err != nil {
+		fmt.Errorf("Could not convert Message %v to JSON: %v", msg, err)
+		return err
+	}
+	return SendJSONMessage(conn, jsonMsg)
+}
+
+// TODO: Also wait for (and return) a response?
+// SendJSONMessage sends a JSON-encoded message on the given connection.
+// This function does not close the connection.
+func SendJSONMessage(conn *net.UDPConn, msg []byte) error {
+	_, err := conn.Write(msg)
+	return err
+}
+
+func PingMessage(contact *Contact) Message {
+	return Message{
+		Type:          "ping",
+		SenderContact: *contact,
+		Data:          "",
+	}
+}
+
+func SendPingMessage(contact *Contact) error {
+	msg := PingMessage(contact)
+	return SendMessage(contact, msg)
 }
 
 func (network *Network) SendPingMessage(contact *Contact) (string, error) {
