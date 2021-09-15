@@ -15,12 +15,12 @@ type Network struct {
 }
 
 type Message struct {
-	Type          string
-	SenderContact Contact
-	TargetContact Contact
-	TargetHash    string
-	Data          string
-	ReturnContact Contact
+	Type           string
+	SenderContact  Contact
+	TargetContact  Contact
+	TargetHash     string
+	Data           string
+	ReturnContacts []Contact
 }
 
 type InternalMessage struct {
@@ -174,11 +174,11 @@ func SendMessage(contact *Contact, msg Message) (Message, error) { // TODO: retu
 }
 
 // Sending self contact
-func (network *Network) SendContactNode(conn *net.UDPConn, dest *net.UDPAddr, returnContact Contact) {
+func (network *Network) SendContactNode(conn *net.UDPConn, dest *net.UDPAddr, returnContacts []Contact) {
 	m := Message{
-		Type:          "LookUpNode-response",
-		SenderContact: network.table.me,
-		ReturnContact: returnContact,
+		Type:           "LookUpNode-response",
+		SenderContact:  network.table.me,
+		ReturnContacts: returnContacts,
 	}
 	msg, _ := json.Marshal(m)
 
@@ -269,7 +269,7 @@ func (network *Network) SendPingAckMessage(l *net.UDPConn, remoteAddr *net.UDPAd
 	l.WriteToUDP(msg, remoteAddr)
 }
 
-func (network *Network) SendFindContactMessage(contact *Contact, knownContact *Contact, contactChan chan Contact) { //contact is the contact to "find"
+func (network *Network) SendFindContactMessage(contact *Contact, knownContact *Contact, contactChan chan []Contact) { //contact is the contact to "find"
 	// FIND_NODE request to bootstrap node
 	var MessageRecv Message
 	recv := make([]byte, 2048)
@@ -301,7 +301,7 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	json.Unmarshal([]byte(string(recv[:n])), &MessageRecv)
 
 	fmt.Println("Received FIND_NODE response", MessageRecv, contactChan)
-	contactChan <- MessageRecv.ReturnContact
+	contactChan <- MessageRecv.ReturnContacts
 	//Lyssna efter svar
 	//Returnera grannar
 }
