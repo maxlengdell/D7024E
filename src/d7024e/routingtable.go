@@ -4,7 +4,6 @@ import "fmt"
 
 const bucketSize = 20
 
-
 // RoutingTable definition
 // keeps a refrence contact of me and an array of buckets
 type RoutingTable struct {
@@ -24,7 +23,7 @@ func (rt *RoutingTable) FmtString(f func(*bucket) string) string {
 		if n <= 0 {
 			continue
 		}
-		if count % 8 == 0 {
+		if count%8 == 0 {
 			str += "\n"
 		}
 		str += fmt.Sprintf("  bucket[%3d]: %s", i, f(bucket))
@@ -35,6 +34,10 @@ func (rt *RoutingTable) FmtString(f func(*bucket) string) string {
 
 func (rt *RoutingTable) ShowFullBucketContents() {
 	fmt.Println(rt.String())
+}
+
+func (rt *RoutingTable) ShowBriefBucketContents() {
+	fmt.Println(rt.FmtString(func(b *bucket) string { return b.BriefString() }))
 }
 
 func (rt *RoutingTable) ShowBucketSizes() {

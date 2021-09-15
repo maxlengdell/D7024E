@@ -1,8 +1,8 @@
 package d7024e
 
 import (
-	"fmt"
 	"container/list"
+	"fmt"
 )
 
 // bucket definition
@@ -24,6 +24,7 @@ func (b *bucket) String() string {
 	return str
 }
 
+// TODO: refactor. Lots of duplicated code from String().
 func (b *bucket) BriefString() string {
 	var str string
 	e := b.list.Front()
@@ -66,7 +67,7 @@ func (bucket *bucket) AddContact(contact Contact) {
 	}
 }
 
-// GetContactAndCalcDistance returns an array of Contacts where 
+// GetContactAndCalcDistance returns an array of Contacts where
 // the distance has already been calculated
 func (bucket *bucket) GetContactAndCalcDistance(target *KademliaID) []Contact {
 	var contacts []Contact
