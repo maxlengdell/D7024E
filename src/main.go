@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"strings"
 
@@ -26,7 +25,6 @@ func main() {
 		kademlia = d7024e.JoinNetwork(firstIP, localIP, 8080)
 		//rt := d7024e.NewRoutingTable(*myContact)
 	}
-	fmt.Println("CONTACTS: ", len(kademlia.Net.table.buckets))
 
 	kademlia.HandleMessage(msgChan)
 
