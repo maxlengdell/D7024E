@@ -1,5 +1,7 @@
 package d7024e
 
+import "fmt"
+
 const bucketSize = 20
 
 
@@ -8,6 +10,36 @@ const bucketSize = 20
 type RoutingTable struct {
 	me      Contact
 	buckets [IDLength * 8]*bucket
+}
+
+func (rt *RoutingTable) String() string {
+	return rt.FmtString(func(b *bucket) string { return b.String() })
+}
+
+func (rt *RoutingTable) FmtString(f func(*bucket) string) string {
+	var str string
+	count := 1
+	for i, bucket := range rt.buckets {
+		n := bucket.list.Len()
+		if n <= 0 {
+			continue
+		}
+		if count % 8 == 0 {
+			str += "\n"
+		}
+		str += fmt.Sprintf("  bucket[%3d]: %s", i, f(bucket))
+		count++
+	}
+	return str
+}
+
+func (rt *RoutingTable) ShowFullBucketContents() {
+	fmt.Println(rt.String())
+}
+
+func (rt *RoutingTable) ShowBucketSizes() {
+	str := rt.FmtString(func(b *bucket) string { return fmt.Sprintf("%d", b.list.Len()) })
+	fmt.Println(str)
 }
 
 // NewRoutingTable returns a new instance of a RoutingTable

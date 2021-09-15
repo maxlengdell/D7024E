@@ -1,6 +1,7 @@
 package d7024e
 
 import (
+	"fmt"
 	"container/list"
 )
 
@@ -8,6 +9,33 @@ import (
 // contains a List
 type bucket struct {
 	list *list.List
+}
+
+// String converts a bucket to a string by showing the IDs of its contacts.
+func (b *bucket) String() string {
+	var str string
+	e := b.list.Front()
+	contact := e.Value.(Contact)
+	str += contact.String()
+	for e = e.Next(); e != nil; e = e.Next() {
+		contact := e.Value.(Contact)
+		str += fmt.Sprintf(", %s", contact.String())
+	}
+	return str
+}
+
+func (b *bucket) BriefString() string {
+	var str string
+	e := b.list.Front()
+	contact := e.Value.(Contact)
+	idStr := contact.ID.String()
+	str += fmt.Sprintf("%s..%s", idStr[0:4], idStr[len(idStr)-4:])
+	for e = e.Next(); e != nil; e = e.Next() {
+		contact := e.Value.(Contact)
+		idStr := contact.ID.String()
+		str += fmt.Sprintf(", %s..%s", idStr[0:4], idStr[len(idStr)-4:])
+	}
+	return str
 }
 
 // newBucket returns a new instance of a bucket

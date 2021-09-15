@@ -270,6 +270,7 @@ func (network *Network) SendPingAckMessage(l *net.UDPConn, remoteAddr *net.UDPAd
 }
 
 func (network *Network) SendFindContactMessage(contact *Contact, knownContact *Contact, contactChan chan []Contact) { //contact is the contact to "find"
+	fmt.Printf("Routing table:\n%s\n", network.table.String())
 	// FIND_NODE request to bootstrap node
 	var MessageRecv Message
 	recv := make([]byte, 2048)

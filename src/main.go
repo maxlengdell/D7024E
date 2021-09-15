@@ -33,6 +33,7 @@ func main() {
 	//net.SendPingMessage(&contact)
 
 }
+
 func getadress() string {
 	//iface, _ := net.InterfaceByName("eth0")
 	ifaces, _ := net.Interfaces()
