@@ -1,6 +1,8 @@
 package d7024e
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"sort"
@@ -63,6 +65,14 @@ func (kademlia *Kademlia) LookupData(hash string) {
 
 func (kademlia *Kademlia) Store(data []byte) {
 	// TODO MAX Store
+	contactChan := make(chan []Contact)
+	//<key,value>
+	storeContact := NewContact(NewKademliaID(Hash(data)), "")
+	go kademlia.Net.SendFindContactMessage(&storeContact, &kademlia.Net.table.me, contactChan)
+	returnContact := <-contactChan
+	for _, contact := range returnContact {
+		kademlia.Net.SendStoreMessage(&contact, data)
+	}
 }
 
 func sortSliceByDistance(slice []Contact) {
@@ -133,9 +143,10 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 		case "LookUpData":
 			fmt.Println("LookUpData RECIEVED, TODO IMPLEMENTATION")
 		case "StoreData":
-			fmt.Println("StoreData RECIEVED, TODO IMPLEMENTATION")
+			fmt.Println("StoreData RECIEVED:", m.msg)
 		case "put":
-			fmt.Println("Store data")
+			fmt.Println("Store data", m.msg)
+			kademlia.Store(m.msg.Data)
 		case "get":
 			fmt.Println("Get data")
 		case "exit":
@@ -144,4 +155,9 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 		}
 
 	}
+}
+func Hash(data []byte) string {
+	//Hash data to sha1 and return
+	sh := sha1.Sum(data)
+	return hex.EncodeToString(sh[:])
 }

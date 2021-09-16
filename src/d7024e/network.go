@@ -19,7 +19,7 @@ type Message struct {
 	SenderContact  Contact
 	TargetContact  Contact
 	TargetHash     string
-	Data           string
+	Data           []byte
 	ReturnContacts []Contact
 }
 
@@ -111,23 +111,18 @@ func cliParser(msg string) Message {
 	case "put":
 		fmt.Println("Received put")
 		resp = Message{
-			Type:          "put",
-			SenderContact: NewContact(nil, ""),
-			Data:          "",
+			Type: "put",
+			Data: []byte(cmds[1]),
 		}
 	case "get":
 		fmt.Println("Received get")
 		resp = Message{
-			Type:          "get",
-			SenderContact: NewContact(nil, ""),
-			Data:          "",
+			Type: "get",
 		}
 	case "exit":
 		fmt.Println("Received exit")
 		resp = Message{
-			Type:          "exit",
-			SenderContact: NewContact(nil, ""),
-			Data:          "",
+			Type: "exit",
 		}
 	}
 	return resp
@@ -207,7 +202,6 @@ func PingMessage(contact *Contact) Message {
 	return Message{
 		Type:          "ping",
 		SenderContact: *contact,
-		Data:          "",
 	}
 }
 
@@ -233,7 +227,6 @@ func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 	m := Message{
 		Type:          "ping",
 		SenderContact: network.table.me,
-		Data:          "",
 	}
 	msg, _ := json.Marshal(m)
 	_, writeErr := l.Write(msg)
@@ -263,7 +256,6 @@ func (network *Network) SendPingAckMessage(l *net.UDPConn, remoteAddr *net.UDPAd
 	response := Message{
 		Type:          "ping",
 		SenderContact: network.table.me,
-		Data:          "ack",
 	}
 	msg, _ := json.Marshal(response)
 	l.WriteToUDP(msg, remoteAddr)
@@ -311,6 +303,12 @@ func (network *Network) SendFindDataMessage(hash string) {
 	// TODO
 }
 
-func (network *Network) SendStoreMessage(data []byte) {
+func (network *Network) SendStoreMessage(recipient *Contact, data []byte) {
 	// TODO
+	m := Message{
+		Type:          "StoreData",
+		SenderContact: network.table.me,
+		Data:          data,
+	}
+	SendMessage(recipient, m)
 }

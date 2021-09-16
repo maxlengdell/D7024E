@@ -29,7 +29,7 @@ func Test_NewKademliaID_with_long_input(t *testing.T) {
 // When the input is not a hex string, it is effectively
 // empty and results in all 0.
 func Test_NewKademliaID_with_invalid_data(t *testing.T) {
-	str := "hello"	// Not hex.
+	str := "hello" // Not hex.
 	expected := "0000000000000000000000000000000000000000"
 	id := NewKademliaID(str)
 	AssertEquals(t, expected, id.String())
@@ -44,4 +44,6 @@ func Test_NewRandomKademliaID(t *testing.T) {
 	AssertNotEquals(t, id2, id3)
 	AssertNotEquals(t, id1, id3)
 }
+func Test_Store(t *testing.T) {
 
+}
