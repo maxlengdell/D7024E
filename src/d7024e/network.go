@@ -176,7 +176,7 @@ func (network *Network) SendContactNode(conn *net.UDPConn, dest *net.UDPAddr, re
 		ReturnContacts: returnContacts,
 	}
 	msg, _ := json.Marshal(m)
-
+	fmt.Println("Send contact node", m)
 	SendJSONViaUDP(conn, dest, msg)
 
 }

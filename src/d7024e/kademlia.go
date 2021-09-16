@@ -15,14 +15,16 @@ type Kademlia struct {
 
 var numberOfParrallellRequests int = 3
 
-func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr *net.UDPAddr) *Contact {
+func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr *net.UDPAddr) []Contact {
 	//Locate k closest nodes
-	contactChan := make(chan []Contact, numberOfParrallellRequests)
+	var returnedContacts []Contact
 
 	neighbours := kademlia.Net.table.FindClosestContacts(target.ID, numberOfParrallellRequests) //3 närmsta grannarna
+	contactChan := make(chan []Contact, len(neighbours))
+
 	kademlia.Net.table.me.CalcDistance(target.ID)
 
-	fmt.Println("Neighbours: ", neighbours)
+	fmt.Println("Neighbours: ", len(neighbours))
 	var emptySlice []Contact
 	meWrappedInSLice := append(emptySlice, kademlia.Net.table.me)
 	if len(neighbours) == 0 {
@@ -42,7 +44,6 @@ func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr
 			fmt.Println("go routine: ", i)
 			go kademlia.Net.SendFindContactMessage(target, &node, contactChan)
 		}
-		var returnedContacts []Contact
 		for range neighbours {
 			returnContact := <-contactChan
 			for _, contact := range returnContact {
@@ -51,10 +52,16 @@ func (kademlia *Kademlia) LookupContact(target *Contact, conn *net.UDPConn, addr
 			}
 		}
 		//Sort numberofParrallell stycken closest contacts
+		fmt.Println("Sorting")
 		sortSliceByDistance(returnedContacts)
-		go kademlia.Net.SendContactNode(conn, addr, returnedContacts[:numberOfParrallellRequests])
+		fmt.Println("Done sorting")
+
+		go kademlia.Net.SendContactNode(conn, addr, returnedContacts[:len(neighbours)])
 	}
-	kademlia.Net.table.AddContact(*target) //ADD AFTER EACH LOOKUP
+	if target.Address != "" {
+		fmt.Println("Adding contact: ", *target)
+		kademlia.Net.table.AddContact(*target) //ADD AFTER EACH LOOKUP
+	}
 	fmt.Println("LookUpNode Complete")
 	return nil
 }
@@ -68,7 +75,11 @@ func (kademlia *Kademlia) Store(data []byte) {
 	contactChan := make(chan []Contact)
 	//<key,value>
 	storeContact := NewContact(NewKademliaID(Hash(data)), "")
-	go kademlia.Net.SendFindContactMessage(&storeContact, &kademlia.Net.table.me, contactChan)
+	neighbours := kademlia.Net.table.FindClosestContacts(kademlia.Net.table.me.ID, numberOfParrallellRequests)
+	for _, node := range neighbours {
+		go kademlia.Net.SendFindContactMessage(&storeContact, &node, contactChan)
+	}
+
 	returnContact := <-contactChan
 	for _, contact := range returnContact {
 		kademlia.Net.SendStoreMessage(&contact, data)
