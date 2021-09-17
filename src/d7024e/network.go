@@ -281,7 +281,8 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	m := Message{
 		Type:          "LookUpNode",
 		SenderContact: network.table.me, //Self
-		TargetContact: *contact,         //Bootstrap node
+		//BootstrapNode
+		TargetContact: *contact, //Bootstrap node
 	}
 	msg, _ := json.Marshal(m)
 	_, writeErr := l.Write(msg)
