@@ -2,7 +2,7 @@ package d7024e
 
 import "fmt"
 
-const bucketSize = 20
+const bucketSize = 6
 
 // RoutingTable definition
 // keeps a refrence contact of me and an array of buckets
