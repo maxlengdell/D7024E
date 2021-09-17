@@ -97,7 +97,7 @@ func Listen(ip string, port int, msgChan chan InternalMessage) error {
 		}
 		//fmt.Printf("\nReceived Listen: %#v \n", m)
 		//go network.handleMessage(&m, l, remoteAddr)
-		fmt.Printf("\nReceived Listen: %#v \n", m)
+		fmt.Println("\nReceived Listen:", m.Type, m.SenderContact.Address)
 		msgChan <- InternalMessage{m, *l, *remoteAddr}
 	}
 	return nil
@@ -176,7 +176,7 @@ func (network *Network) SendContactNode(conn *net.UDPConn, dest *net.UDPAddr, re
 		ReturnContacts: returnContacts,
 	}
 	msg, _ := json.Marshal(m)
-	fmt.Println("Send contact node", m)
+	fmt.Println("Returned contact manifest", m)
 	SendJSONViaUDP(conn, dest, msg)
 
 }
@@ -242,9 +242,11 @@ func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 		var m Message
 		json.Unmarshal([]byte(string(recv[:n])), &m)
 
-		fmt.Println("Confirmed alive", m)
+		fmt.Println("Confirmed alive", string(recv))
+		fmt.Println("Confirmed alive with m", m)
+
 		if m.Type == "ping" {
-			fmt.Println("ID: not set", m.SenderContact.ID)
+			//fmt.Println("ID: not set", m.SenderContact.ID)
 			return m.SenderContact.ID.String(), nil
 		}
 		break
@@ -257,12 +259,13 @@ func (network *Network) SendPingAckMessage(l *net.UDPConn, remoteAddr *net.UDPAd
 		Type:          "ping",
 		SenderContact: network.table.me,
 	}
+	fmt.Println("PING ack: ", response.SenderContact)
 	msg, _ := json.Marshal(response)
 	l.WriteToUDP(msg, remoteAddr)
 }
 
 func (network *Network) SendFindContactMessage(contact *Contact, knownContact *Contact, contactChan chan []Contact) { //contact is the contact to "find"
-	fmt.Printf("Routing table:\n%s\n", network.table.String())
+	//fmt.Printf("Routing table:\n%s\n", network.table.String())
 	// FIND_NODE request to bootstrap node
 	var MessageRecv Message
 	recv := make([]byte, 2048)
