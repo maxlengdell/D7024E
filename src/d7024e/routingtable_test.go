@@ -21,6 +21,16 @@ func TestRoutingTable(t *testing.T) {
 		fmt.Println(contacts[i].String())
 	}
 }
+func TestRoutingTable2(t *testing.T) {
+	rt := NewRoutingTable(NewContact(NewKademliaID("FFFFFFFF00000000000000000000000000000000"), "localhost:8000"))
+
+	rt.AddContact(NewContact(NewKademliaID("FFFFFFFF00000000000000000000000000000000"), "localhost:8001"))
+
+	contacts := rt.FindClosestContacts(NewKademliaID("FFFFFFFF00000000000000000000000000000000"), 20)
+	for i := range contacts {
+		fmt.Println("MAX: ", contacts[i].String())
+	}
+}
 
 func Test_RoutingTable_String(t *testing.T) {
 	rt := NewRoutingTable(NewContact(NewKademliaID("1a2b3c4d"), "1.2.3.4:123"))

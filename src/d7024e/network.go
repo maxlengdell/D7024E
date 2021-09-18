@@ -243,7 +243,6 @@ func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 		json.Unmarshal([]byte(string(recv[:n])), &m)
 
 		fmt.Println("Confirmed alive", string(recv))
-		fmt.Println("Confirmed alive with m", m)
 
 		if m.Type == "ping" {
 			//fmt.Println("ID: not set", m.SenderContact.ID)
