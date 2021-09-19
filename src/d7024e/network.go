@@ -302,8 +302,44 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	//Returnera grannar
 }
 
-func (network *Network) SendFindDataMessage(hash string) {
-	// TODO
+func (network *Network) SendFindDataMessage(hash string, knownContact *Contact, contactChan chan []Contact, dataChan chan string) {
+	var MessageRecv Message
+	recv := make([]byte, 2048)
+
+	l, err := net.Dial("udp", knownContact.Address)
+	defer l.Close()
+	if err != nil {
+		fmt.Println("Error listening:", err.Error())
+		os.Exit(1)
+	}
+	m := Message{
+		Type:          "LookUpData",
+		SenderContact: network.table.me,
+		TargetHash:    hash,
+	}
+	msg, _ := json.Marshal(m)
+	_, writeErr := l.Write(msg)
+	//Handle err
+	if writeErr != nil {
+		fmt.Println("Could not send msg", err)
+	} else {
+		fmt.Println("SENT LOOKUPDATA: "+string(msg)+" TO : ", knownContact)
+	}
+	//**Listen for response**
+	n, _ := l.Read(recv)
+
+	json.Unmarshal([]byte(string(recv[:n])), &MessageRecv)
+
+	fmt.Println("Received FIND_DATA response", MessageRecv, contactChan, dataChan)
+	if MessageRecv.ReturnContacts != nil {
+		contactChan <- MessageRecv.ReturnContacts
+	} else {
+		dataChan <- string(MessageRecv.Data)
+	}
+
+	// Do I have hash key data?
+	// Give back k triples
+
 }
 
 func (network *Network) SendStoreMessage(recipient *Contact, data []byte) {

@@ -32,6 +32,85 @@ func chooseNContacts(shortlist, visited []Contact, n int) []Contact {
 
 	return returnArr
 }
+
+func (kademlia *Kademlia) LookupData(hash string, retContactChan chan []Contact, retDataChan chan string) {
+	shortlist := kademlia.Net.table.FindClosestContacts(NewKademliaID(hash), bucketSize)
+	var visitedNodes []Contact
+	var closestNode Contact = shortlist[0]
+
+	var alpha1 []Contact = chooseNContacts(shortlist, visitedNodes, numberOfParallelRequests)
+	fmt.Println("FIND_DATA Shortlist: ", len(shortlist), "nContacts: ", alpha1)
+
+	contactChan := make(chan []Contact, len(alpha1))
+	dataChan := make(chan string, 1)
+
+	for i, node := range alpha1 { //Alpha 1
+		fmt.Println("FIND_DATA Looping neighbour: ", i, node.Address)
+		go kademlia.Net.SendFindDataMessage(hash, &node, contactChan, dataChan)
+		visitedNodes = append(visitedNodes, node)
+	}
+	for i, _ := range alpha1 {
+		fmt.Println("FIND_DATA in loop alpha1")
+		select {
+		case recievedContacts := <-contactChan: //Recieved responses from findContactMessage
+			for _, contact := range recievedContacts {
+				shortlist = append(shortlist, contact)
+				fmt.Println("FIND_DATA Recieved contact: ", i, contact)
+			}
+		case recievedData := <-dataChan:
+			retDataChan <- recievedData
+			return
+		case <-time.After(time.Duration(timeoutDur) * time.Second):
+			fmt.Println("*********FIND_DATA TIMEOUT alpha 1********")
+			//Remove node from shortlist
+			break
+		}
+	}
+	var madeProgress bool = true
+
+	for madeProgress {
+		madeProgress = false
+		var alpha2 []Contact = chooseNContacts(shortlist, visitedNodes, numberOfParallelRequests)
+		alpha2Channel := make(chan []Contact, len(alpha2))
+		alpha2DataChannel := make(chan string, 1)
+
+		for j, node := range alpha2 { //Alpha 2
+			fmt.Println("in loop alpha2", j)
+			go kademlia.Net.SendFindDataMessage(hash, &node, alpha2Channel, alpha2DataChannel)
+			visitedNodes = append(visitedNodes, node)
+		}
+	loop:
+		for {
+			select {
+			case recievedContacts := <-alpha2Channel:
+				for _, contact := range recievedContacts {
+					contact.CalcDistance(kademlia.Net.table.me.ID)
+					fmt.Println("Appending alpha 2: ", closestNode)
+					shortlist = append(shortlist, contact)
+					if contact.Less(&closestNode) {
+						closestNode = contact
+						madeProgress = true
+					}
+				}
+			case recievedData := <-alpha2DataChannel:
+				retDataChan <- recievedData
+				return
+			case <-time.After(time.Duration(timeoutDur) * time.Second):
+				fmt.Println("*********TIMEOUT alpha2********")
+				break loop
+			}
+		}
+
+		if len(shortlist) >= bucketSize {
+			fmt.Println("Shortlist size exceeded bucketsize")
+			break
+		}
+	}
+	fmt.Println("shortlist: ", shortlist, "closest node: ", closestNode)
+
+	retContactChan <- shortlist
+}
+
 func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact) {
 	//Locate k closest nodes
 	shortlist := kademlia.Net.table.FindClosestContacts(target.ID, bucketSize) //3 närmsta grannarna
@@ -39,12 +118,12 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 	var closestNode Contact = shortlist[0]
 
 	var alpha1 []Contact = chooseNContacts(shortlist, visitedNodes, numberOfParallelRequests)
-	fmt.Println("Shortlist: ", len(shortlist), "nContacts: ", alpha1)
+	fmt.Println("FIND_NODE Shortlist: ", len(shortlist), "nContacts: ", alpha1)
 
 	contactChan := make(chan []Contact, len(alpha1))
 
 	for i, node := range alpha1 { //Alpha 1
-		fmt.Println("Looping neighbour: ", i, node.Address)
+		fmt.Println("FIND_NODE Looping neighbour: ", i, node.Address)
 		go kademlia.Net.SendFindContactMessage(target, &node, contactChan)
 		visitedNodes = append(visitedNodes, node)
 	}
@@ -101,10 +180,6 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 	fmt.Println("shortlist: ", shortlist, "closest node: ", closestNode)
 
 	retChan <- shortlist
-}
-
-func (kademlia *Kademlia) LookupData(hash string) {
-	// TODO TOM LookUpData
 }
 
 func (kademlia *Kademlia) Store(data []byte) {
