@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"net"
 	"sort"
 	"strconv"
-	"time"
 )
 
 type Kademlia struct {
@@ -22,15 +20,16 @@ var numberOfParallelRequests int = 3
 var timeoutDur int = 1
 
 func chooseNContacts(shortlist, visited []Contact, n int) []Contact {
-	//TODO
-	rand.Seed(time.Now().Unix())
 	var returnArr []Contact
-	if len(shortlist) < n || len(shortlist) == 0 {
-		return shortlist
-	}
+
 	for i := 0; i < n; i++ {
-		index := rand.Int() % len(shortlist)
-		returnArr = append(returnArr, shortlist[index])
+		if i >= len(shortlist) {
+			break
+		}
+		_, contains := Find(visited, shortlist[i])
+		if !contains {
+			returnArr = append(returnArr, shortlist[i])
+		}
 	}
 
 	return returnArr
@@ -135,13 +134,13 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 		go kademlia.Net.SendFindContactMessage(target, &node, contactChan, removeChan)
 		visitedNodes = append(visitedNodes, node)
 	}
-	//{1,2,3,4}
+
 	for i, _ := range alpha1 {
 		fmt.Println("in loop alpha1")
 		select {
 		case recievedContacts := <-contactChan: //Recieved responses from findContactMessage
-			//{1,3,2}{1,2}
 			for _, contact := range recievedContacts {
+				//TODO: only add unique contacts
 				shortlist = append(shortlist, contact)
 				fmt.Println("Recieved contact: ", i, contact)
 			}
@@ -153,7 +152,7 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 		}
 	}
 	var madeProgress bool = true
-
+	fmt.Println("Made Progress print", visitedNodes, shortlist)
 	for madeProgress {
 		madeProgress = false
 		var alpha2 []Contact = chooseNContacts(shortlist, visitedNodes, numberOfParallelRequests)
@@ -172,11 +171,13 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 				for _, contact := range recievedContacts {
 					contact.CalcDistance(kademlia.Net.table.me.ID)
 					fmt.Println("Appending alpha 2: ", closestNode)
+					//TODO Only add unique
 					shortlist = append(shortlist, contact)
 					if contact.Less(&closestNode) {
 						closestNode = contact
 						madeProgress = true
 					}
+
 				}
 			case removeContact := <-alpha2TimeoutChannel:
 				fmt.Println("*********TIMEOUT alpha2********")
@@ -184,7 +185,6 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 				break loop
 			}
 		}
-
 		if len(shortlist) >= bucketSize {
 			fmt.Println("Shortlist size exceeded bucketsize")
 			break

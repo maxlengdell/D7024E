@@ -17,3 +17,11 @@ func WriteToFile(data []byte, filename string) {
 	err := os.WriteFile(filepath+filename, data, 0644)
 	handleErr(err)
 }
+func Find(slice []Contact, val Contact) (int, bool) {
+	for i, item := range slice {
+		if item.ID.Equals(val.ID) {
+			return i, true
+		}
+	}
+	return -1, false
+}
