@@ -7,8 +7,7 @@ import (
 	"github.com/maxlengdell/D7024E/go1"
 )
 
-// TODO: remove? Doesn't really test anything?
-func TestRoutingTable(t *testing.T) {
+func Example_RoutingTable() {
 	rt := NewRoutingTable(NewContact(NewKademliaID("FFFFFFFF00000000000000000000000000000000"), "localhost:8000"))
 
 	rt.AddContact(NewContact(NewKademliaID("FFFFFFFF00000000000000000000000000000000"), "localhost:8001"))
@@ -22,7 +21,15 @@ func TestRoutingTable(t *testing.T) {
 	for i := range contacts {
 		fmt.Println(contacts[i].String())
 	}
+	// Output:
+	// contact("2111111400000000000000000000000000000000", "localhost:8002")
+	// contact("1111111400000000000000000000000000000000", "localhost:8002")
+	// contact("1111111100000000000000000000000000000000", "localhost:8002")
+	// contact("1111111200000000000000000000000000000000", "localhost:8002")
+	// contact("1111111300000000000000000000000000000000", "localhost:8002")
+	// contact("ffffffff00000000000000000000000000000000", "localhost:8001")
 }
+
 func TestRoutingTable2(t *testing.T) {
 	rt := NewRoutingTable(NewContact(NewKademliaID("FFFFFFFF00000000000000000000000000000000"), "localhost:8000"))
 
