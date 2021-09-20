@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	//"strconv"
 	"strings"
@@ -243,7 +244,7 @@ func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 		json.Unmarshal([]byte(string(recv[:n])), &m)
 
 		fmt.Println("Confirmed alive", string(recv))
-
+		network.table.AddContact(m.SenderContact)
 		if m.Type == "ping" {
 			//fmt.Println("ID: not set", m.SenderContact.ID)
 			return m.SenderContact.ID.String(), nil
@@ -263,7 +264,7 @@ func (network *Network) SendPingAckMessage(l *net.UDPConn, remoteAddr *net.UDPAd
 	l.WriteToUDP(msg, remoteAddr)
 }
 
-func (network *Network) SendFindContactMessage(contact *Contact, knownContact *Contact, contactChan chan []Contact) { //contact is the contact to "find"
+func (network *Network) SendFindContactMessage(contact *Contact, knownContact *Contact, contactChan chan []Contact, removeChan chan Contact) { //contact is the contact to "find"
 	//fmt.Printf("Routing table:\n%s\n", network.table.String())
 	// FIND_NODE request to bootstrap node
 	var MessageRecv Message
@@ -272,6 +273,8 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	//fmt.Println("SENDING FIND CONTACT", knownContact, contact.ID)
 
 	l, err := net.Dial("udp", knownContact.Address)
+	l.SetDeadline(time.Now().Add(time.Duration(timeoutDur)))
+
 	defer l.Close()
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
@@ -286,20 +289,20 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	msg, _ := json.Marshal(m)
 	_, writeErr := l.Write(msg)
 	//Handle err
-	if writeErr != nil {
-		fmt.Println("Could not send msg", err)
-	} else {
-		fmt.Println("SENT LOOKUPNODE: "+string(msg)+" TO : ", knownContact)
-	}
+	handleErr(writeErr)
+	fmt.Println("SENT LOOKUPNODE: "+string(msg)+" TO : ", knownContact)
+
 	//**Listen for response**
 	n, _ := l.Read(recv)
+	if n > 0 {
+		json.Unmarshal([]byte(string(recv[:n])), &MessageRecv)
 
-	json.Unmarshal([]byte(string(recv[:n])), &MessageRecv)
-
-	fmt.Println("Received FIND_NODE response", MessageRecv, contactChan)
-	contactChan <- MessageRecv.ReturnContacts
-	//Lyssna efter svar
-	//Returnera grannar
+		fmt.Println("Received FIND_NODE response", MessageRecv, contactChan)
+		contactChan <- MessageRecv.ReturnContacts
+	} else {
+		fmt.Println("timeout, removing sender", knownContact.Address)
+		removeChan <- *knownContact
+	}
 }
 
 func (network *Network) SendFindDataMessage(hash string, knownContact *Contact, contactChan chan []Contact, dataChan chan string) {
@@ -342,12 +345,13 @@ func (network *Network) SendFindDataMessage(hash string, knownContact *Contact, 
 
 }
 
-func (network *Network) SendStoreMessage(recipient *Contact, data []byte) {
+func (network *Network) SendStoreMessage(recipient *Contact, data []byte, returnChan chan Message) {
 	// TODO
 	m := Message{
 		Type:          "StoreData",
 		SenderContact: network.table.me,
 		Data:          data,
 	}
-	SendMessage(recipient, m)
+	msg, _ := SendMessage(recipient, m)
+	returnChan <- msg
 }
