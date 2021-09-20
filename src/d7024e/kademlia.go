@@ -9,6 +9,7 @@ import (
 	"net"
 	"sort"
 	"strconv"
+	"time"
 )
 
 type Kademlia struct {
@@ -161,9 +162,7 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 
 		for j, node := range alpha2 { //Alpha 2
 			fmt.Println("in loop alpha2", j, node.Address)
-			if !kademlia.Net.table.me.ID.Equals(node.ID) {
-				go kademlia.Net.SendFindContactMessage(target, &node, alpha2Channel, alpha2TimeoutChannel)
-			}
+			go kademlia.Net.SendFindContactMessage(target, &node, alpha2Channel, alpha2TimeoutChannel)
 			visitedNodes = append(visitedNodes, node)
 		}
 		fmt.Println("HERE!!")
@@ -183,12 +182,16 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 						closestNode = contact
 						madeProgress = true
 					}
-
 				}
 			case removeContact := <-alpha2TimeoutChannel:
 				fmt.Println("*********TIMEOUT alpha2********")
 				RemoveContact(shortlist, removeContact)
 				break loop
+
+			case <-time.After(time.Duration(timeoutDur) * time.Second):
+				fmt.Println("*********TIMEOUT duration alpha 2********")
+				break loop
+
 			}
 		}
 		if len(shortlist) >= bucketSize {
