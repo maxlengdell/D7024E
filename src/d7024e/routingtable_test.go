@@ -3,6 +3,8 @@ package d7024e
 import (
 	"fmt"
 	"testing"
+
+	"github.com/maxlengdell/D7024E/go1"
 )
 
 // TODO: remove? Doesn't really test anything?
@@ -39,7 +41,7 @@ func Test_RoutingTable_String(t *testing.T) {
 	rt.AddContact(NewContact(NewKademliaID("2b3c4d5e00000000000000000000000000000000"), "2.3.4.5:234"))
 	rt.AddContact(NewContact(NewKademliaID("3b3c4d5e00000000000000000000000000000000"), "3.4.5.6:345"))
 	expected := `  bucket[  2]: contact("3b3c4d5e00000000000000000000000000000000", "3.4.5.6:345"), contact("2b3c4d5e00000000000000000000000000000000", "2.3.4.5:234")  bucket[  3]: contact("000000000000000000000000000000002b3c4d5e", "5.4.3.2:234")`
-	AssertEquals(t, expected, rt.String())
+	go1.AssertEquals(t, expected, rt.String())
 
 }
 
