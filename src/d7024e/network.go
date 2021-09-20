@@ -99,6 +99,7 @@ func Listen(ip string, port int, msgChan chan InternalMessage) error {
 		//fmt.Printf("\nReceived Listen: %#v \n", m)
 		//go network.handleMessage(&m, l, remoteAddr)
 		fmt.Println("Received Listen:", m.Type, m.SenderContact.Address)
+		fmt.Println("Sending to handle ")
 		msgChan <- InternalMessage{m, *l, *remoteAddr}
 	}
 	return nil

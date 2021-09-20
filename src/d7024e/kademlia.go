@@ -272,13 +272,12 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 			go kademlia.HandleFindNode(m)
 		case "LookUpData":
 			go kademlia.HandleFindData(m)
-
 		case "StoreData":
 			fmt.Println("StoreData RECIEVED:", m.msg)
 			go kademlia.HandleStoreData(m.msg.Data, m.conn, m.remoteAddr)
 		case "put":
 			fmt.Println("Store data", m.msg)
-			go kademlia.HandleStoreData(m.msg.Data, m.conn, m.remoteAddr)
+			go kademlia.Store(m.msg.Data)
 		case "get":
 			fmt.Println("Get data")
 		case "exit":
@@ -290,13 +289,11 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 }
 func (kademlia *Kademlia) Store(data []byte) {
 	// TODO MAX Store
-	contactChan := make(chan []Contact)
 	returnChan := make(chan Message)
 
 	storeContact := NewContact(NewKademliaID(Hash(data)), "")
-	kademlia.LookupContact(&storeContact, contactChan)
+	neighbours := kademlia.FindNode(&storeContact)
 
-	neighbours := <-contactChan
 	fmt.Println("Neighbours for store", neighbours, "hash of data: ", Hash(data))
 	for _, node := range neighbours {
 		go kademlia.Net.SendStoreMessage(&node, data, returnChan)
@@ -310,7 +307,7 @@ func (kademlia *Kademlia) HandleStoreData(data []byte, conn net.UDPConn, retAddr
 	//Skicka tillbaka om det gick bra att spara. Terminerar om det ej går att spara.
 	WriteToFile(data, Hash(data))
 	kademlia.HashStorage = append(kademlia.HashStorage, Hash(data))
-	conn.WriteToUDP([]byte("OK: Message stored"), &retAddr)
+	conn.WriteToUDP([]byte("OK: Message stored"+kademlia.Net.table.me.Address), &retAddr)
 }
 func (kademlia *Kademlia) HandleFindNode(m InternalMessage) {
 	resp := Message{
