@@ -160,13 +160,19 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 		alpha2TimeoutChannel := make(chan Contact, 1)
 
 		for j, node := range alpha2 { //Alpha 2
-			fmt.Println("in loop alpha2", j)
-			go kademlia.Net.SendFindContactMessage(target, &node, alpha2Channel, alpha2TimeoutChannel)
+			fmt.Println("in loop alpha2", j, node.Address)
+			if !kademlia.Net.table.me.ID.Equals(node.ID) {
+				go kademlia.Net.SendFindContactMessage(target, &node, alpha2Channel, alpha2TimeoutChannel)
+			}
 			visitedNodes = append(visitedNodes, node)
 		}
+		fmt.Println("HERE!!")
 	loop:
 		for {
+			fmt.Println("Before select")
+
 			select {
+
 			case recievedContacts := <-alpha2Channel:
 				for _, contact := range recievedContacts {
 					contact.CalcDistance(kademlia.Net.table.me.ID)
