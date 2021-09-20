@@ -1,5 +1,7 @@
 package main
 
+//Docker attach shell
+//docker exec -it upbeat_dewdney /bin/sh
 import (
 	"net"
 	"strings"
@@ -16,22 +18,13 @@ func main() {
 	go d7024e.Listen(localIP, 1010, msgChan) //CLI
 
 	if localIP == firstIP {
-		//If first node in the network, bootstrap
 		//Enter bootstrap sequence
 		kademlia = d7024e.Bootstrap(localIP, 8080)
-		//rt := d7024e.NewRoutingTable(*myContact)
 
 	} else {
 		kademlia = d7024e.JoinNetwork(firstIP, localIP, 8080)
-		//rt := d7024e.NewRoutingTable(*myContact)
 	}
-
 	kademlia.HandleMessage(msgChan)
-
-	//id := d7024e.NewRandomKademliaID()
-	//Contact := d7024e.NewContact(id, "172.18.0.2")
-	//net.SendPingMessage(&contact)
-
 }
 
 func getadress() string {

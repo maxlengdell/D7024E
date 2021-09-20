@@ -22,6 +22,7 @@ WORKDIR /app/src/
 RUN go install .
 RUN go build -o /app/src/docker-run
 WORKDIR /app/
+RUN mkdir filestorage
 CMD ["/app/src/docker-run"]
 
 

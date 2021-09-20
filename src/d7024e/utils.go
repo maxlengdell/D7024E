@@ -1,5 +1,9 @@
 package d7024e
 
+import "os"
+
+var filepath string = "/app/filestorage/"
+
 func RemoveContact(shortlist []Contact, contact Contact) []Contact {
 	var result []Contact
 	for _, node := range shortlist {
@@ -9,6 +13,7 @@ func RemoveContact(shortlist []Contact, contact Contact) []Contact {
 	}
 	return result
 }
-func StoreData(data []byte) {
-
+func WriteToFile(data []byte, filename string) {
+	err := os.WriteFile(filepath+filename, data, 0644)
+	handleErr(err)
 }

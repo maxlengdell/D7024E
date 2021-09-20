@@ -33,8 +33,8 @@ type InternalMessage struct {
 func handleErr(err error) {
 	//TODO
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		fmt.Println("ERROR termination: ", err)
+		os.Exit(111)
 	}
 
 }
@@ -98,7 +98,7 @@ func Listen(ip string, port int, msgChan chan InternalMessage) error {
 		}
 		//fmt.Printf("\nReceived Listen: %#v \n", m)
 		//go network.handleMessage(&m, l, remoteAddr)
-		fmt.Println("\nReceived Listen:", m.Type, m.SenderContact.Address)
+		fmt.Println("Received Listen:", m.Type, m.SenderContact.Address)
 		msgChan <- InternalMessage{m, *l, *remoteAddr}
 	}
 	return nil
@@ -273,7 +273,7 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	//fmt.Println("SENDING FIND CONTACT", knownContact, contact.ID)
 
 	l, err := net.Dial("udp", knownContact.Address)
-	l.SetDeadline(time.Now().Add(time.Duration(timeoutDur)))
+	l.SetDeadline(time.Now().Add(time.Duration(timeoutDur) * time.Second))
 
 	defer l.Close()
 	if err != nil {
