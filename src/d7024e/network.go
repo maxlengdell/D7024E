@@ -305,11 +305,13 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	}
 }
 
-func (network *Network) SendFindDataMessage(hash string, knownContact *Contact, contactChan chan []Contact, dataChan chan string) {
+func (network *Network) SendFindDataMessage(hash string, knownContact *Contact, contactChan chan []Contact, removeChan chan Contact, dataChan chan string) {
 	var MessageRecv Message
 	recv := make([]byte, 2048)
 
 	l, err := net.Dial("udp", knownContact.Address)
+	l.SetDeadline(time.Now().Add(time.Duration(timeoutDur)))
+
 	defer l.Close()
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
@@ -330,14 +332,18 @@ func (network *Network) SendFindDataMessage(hash string, knownContact *Contact, 
 	}
 	//**Listen for response**
 	n, _ := l.Read(recv)
+	if n < 0 {
+		json.Unmarshal([]byte(string(recv[:n])), &MessageRecv)
 
-	json.Unmarshal([]byte(string(recv[:n])), &MessageRecv)
-
-	fmt.Println("Received FIND_DATA response", MessageRecv, contactChan, dataChan)
-	if MessageRecv.ReturnContacts != nil {
-		contactChan <- MessageRecv.ReturnContacts
+		fmt.Println("Received FIND_DATA response", MessageRecv, contactChan, dataChan)
+		if MessageRecv.ReturnContacts != nil {
+			contactChan <- MessageRecv.ReturnContacts
+		} else {
+			dataChan <- string(MessageRecv.Data)
+		}
 	} else {
-		dataChan <- string(MessageRecv.Data)
+		fmt.Println("FIND_DATA timeout, removing sender", knownContact.Address)
+		removeChan <- *knownContact
 	}
 
 	// Do I have hash key data?

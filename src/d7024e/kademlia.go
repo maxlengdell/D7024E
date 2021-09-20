@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"sort"
 	"strconv"
@@ -43,10 +44,11 @@ func (kademlia *Kademlia) LookupData(hash string, retContactChan chan []Contact,
 
 	contactChan := make(chan []Contact, len(alpha1))
 	dataChan := make(chan string, 1)
+	removeChan := make(chan Contact, 1)
 
 	for i, node := range alpha1 { //Alpha 1
 		fmt.Println("FIND_DATA Looping neighbour: ", i, node.Address)
-		go kademlia.Net.SendFindDataMessage(hash, &node, contactChan, dataChan)
+		go kademlia.Net.SendFindDataMessage(hash, &node, contactChan, removeChan, dataChan)
 		visitedNodes = append(visitedNodes, node)
 	}
 	for i, _ := range alpha1 {
@@ -60,8 +62,9 @@ func (kademlia *Kademlia) LookupData(hash string, retContactChan chan []Contact,
 		case recievedData := <-dataChan:
 			retDataChan <- recievedData
 			return
-		case <-time.After(time.Duration(timeoutDur) * time.Second):
+		case removeContact := <-removeChan:
 			fmt.Println("*********FIND_DATA TIMEOUT alpha 1********")
+			RemoveContact(shortlist, removeContact)
 			//Remove node from shortlist
 			break
 		}
@@ -73,10 +76,11 @@ func (kademlia *Kademlia) LookupData(hash string, retContactChan chan []Contact,
 		var alpha2 []Contact = chooseNContacts(shortlist, visitedNodes, numberOfParallelRequests)
 		alpha2Channel := make(chan []Contact, len(alpha2))
 		alpha2DataChannel := make(chan string, 1)
+		alpha2TimeoutChannel := make(chan Contact, 1)
 
 		for j, node := range alpha2 { //Alpha 2
 			fmt.Println("in loop alpha2", j)
-			go kademlia.Net.SendFindDataMessage(hash, &node, alpha2Channel, alpha2DataChannel)
+			go kademlia.Net.SendFindDataMessage(hash, &node, alpha2Channel, alpha2TimeoutChannel, alpha2DataChannel)
 			visitedNodes = append(visitedNodes, node)
 		}
 	loop:
@@ -95,8 +99,9 @@ func (kademlia *Kademlia) LookupData(hash string, retContactChan chan []Contact,
 			case recievedData := <-alpha2DataChannel:
 				retDataChan <- recievedData
 				return
-			case <-time.After(time.Duration(timeoutDur) * time.Second):
+			case removeContact := <-alpha2TimeoutChannel:
 				fmt.Println("*********TIMEOUT alpha2********")
+				RemoveContact(shortlist, removeContact)
 				break loop
 			}
 		}
@@ -281,7 +286,8 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 			go kademlia.HandleFindNode(m)
 			//go kademlia.LookupContact(&m.msg.TargetContact, &m.conn, &m.remoteAddr)
 		case "LookUpData":
-			fmt.Println("LookUpData RECIEVED, TODO IMPLEMENTATION")
+			go kademlia.HandleFindData(m)
+
 		case "StoreData":
 			fmt.Println("StoreData RECIEVED:", m.msg)
 			go StoreData(m.msg.Data)
@@ -308,6 +314,27 @@ func (kademlia *Kademlia) HandleFindNode(m InternalMessage) {
 	fmt.Println("Returned closest contacts to target: ", m.msg.TargetContact.Address, "neighbours: ", resp.ReturnContacts)
 
 }
+func (kademlia *Kademlia) HandleFindData(m InternalMessage) {
+	//DO I HAVE DATA
+	files, _ := ioutil.ReadDir("../../D7024E/DATA")
+	for _, file := range files {
+		fmt.Println("FILE IN DATA: ", file.Name())
+		if file.Name() == m.msg.TargetHash {
+			//Send back data!!
+			fmt.Println("MATCH!!!!!!!!!!!!!! TODO SEND BACK DATA")
+			return
+		}
+	}
+	resp := Message{
+		Type:           "find-data-resp",
+		ReturnContacts: kademlia.Net.table.FindClosestContacts(m.msg.TargetContact.ID, numberOfParallelRequests),
+	}
+	jsonMsg, err := json.Marshal(resp)
+	handleErr(err)
+	m.conn.WriteToUDP(jsonMsg, &m.remoteAddr)
+	fmt.Println("Returned closest contacts to target: ", m.msg.TargetContact.Address, "neighbours: ", resp.ReturnContacts)
+}
+
 func Hash(data []byte) string {
 	//Hash data to sha1 and return
 	sh := sha1.Sum(data)
