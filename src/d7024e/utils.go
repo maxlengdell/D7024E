@@ -26,6 +26,8 @@ func WriteToFile(data []byte, filename string) {
 	handleErr(err)
 }
 
+// Find returns the first index where the given contact is stored or -1
+// if it cannot be found.
 func Find(slice []Contact, val Contact) (int, bool) {
 	for i, item := range slice {
 		if item.ID.Equals(val.ID) {
@@ -49,16 +51,18 @@ func trace(fname string, args ...interface{}) func() {
 	}
 }
 
-func Add(slice []Contact, val Contact) []Contact {
-	var returnArr []Contact
-	_, check := Find(slice, val)
-	if !check {
-		returnArr = append(slice, val)
-		return returnArr
-	} else {
-		return slice
+// Add a contact to the slice of contacts if one with matching ID does not
+// already exist. Note that only the contacts' Kademlia IDs are used for
+// comparison.
+func Add(contacts []Contact, val Contact) []Contact {
+	for _, item := range contacts {
+		if item.ID.Equals(val.ID) {
+			return contacts
+		}
 	}
+	return append(contacts, val)
 }
+
 func Hash(data []byte) string {
 	//Hash data to sha1 and return
 	sh := sha1.Sum(data)
