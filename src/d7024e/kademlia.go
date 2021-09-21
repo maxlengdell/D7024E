@@ -288,7 +288,7 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 			go kademlia.Store(m.msg.Data)
 		case "get":
 			fmt.Println("Get data")
-			go kademlia.HandleFindData()
+			go kademlia.HandleFindData(m)
 		case "exit":
 			//Kill network object
 			fmt.Println("Quitting node...")
@@ -304,7 +304,7 @@ func (kademlia *Kademlia) Store(data []byte) {
 	storeContact := NewContact(NewKademliaID(Hash(data)), "")
 	neighbours := kademlia.FindNode(&storeContact)
 
-	fmt.Println("Neighbours for store", neighbours, "hash of data: ", Hash(data))
+	fmt.Println("#######################Neighbours for store", neighbours, "hash of data: ", Hash(data))
 	for _, node := range neighbours {
 		knownContact := node
 		go kademlia.Net.SendStoreMessage(&knownContact, data, returnChan)
@@ -340,19 +340,34 @@ func (kademlia *Kademlia) HandleFindNode(m InternalMessage) {
 }
 func (kademlia *Kademlia) HandleFindData(m InternalMessage) {
 	//DO I HAVE DATA
-	files, _ := ioutil.ReadDir(filepath)
+	//fmt.Printf("GET MESSAGE: %+v\n", m, "\n")
+	storagePath := "/app/filestorage"
+	files, _ := ioutil.ReadDir(storagePath)
+	fmt.Println("FILES DONE,", files)
 	for _, file := range files {
 		fmt.Println("FILE IN DATA: ", file.Name())
 		if file.Name() == m.msg.TargetHash {
-			//Send back data!!
-			fmt.Println("MATCH!!!!!!!!!!!!!! TODO SEND BACK DATA")
+			content, err := ioutil.ReadFile(storagePath + "/" + m.msg.TargetHash)
+			handleErr(err)
+			resp := Message{
+				Type: "find-data-resp",
+				Data: content,
+			}
+			fmt.Println("MATCH!!!!!!!!!!!!!! ", resp)
+			jsonMsg, err := json.Marshal(resp)
+			handleErr(err)
+			m.conn.WriteToUDP(jsonMsg, &m.remoteAddr)
 			return
 		}
 	}
+	//fmt.Println("WTF GET MESSAGE,", hash)
+	returnContacts := kademlia.Net.table.FindClosestContacts(NewKademliaID(m.msg.TargetHash), numberOfParallelRequests)
+	//fmt.Println("RETURNCONTACTS IN GET MESSAGE ", returnContacts)
 	resp := Message{
 		Type:           "find-data-resp",
-		ReturnContacts: kademlia.Net.table.FindClosestContacts(m.msg.TargetContact.ID, numberOfParallelRequests),
+		ReturnContacts: returnContacts,
 	}
+	//fmt.Println("RESPONSE IN GET MESSAGE,", resp)
 	jsonMsg, err := json.Marshal(resp)
 	handleErr(err)
 	m.conn.WriteToUDP(jsonMsg, &m.remoteAddr)
