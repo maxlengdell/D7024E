@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -287,9 +288,11 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 			go kademlia.Store(m.msg.Data)
 		case "get":
 			fmt.Println("Get data")
+			go kademlia.HandleFindData()
 		case "exit":
 			//Kill network object
 			fmt.Println("Quitting node...")
+			os.Exit(66)
 		}
 
 	}
@@ -337,7 +340,7 @@ func (kademlia *Kademlia) HandleFindNode(m InternalMessage) {
 }
 func (kademlia *Kademlia) HandleFindData(m InternalMessage) {
 	//DO I HAVE DATA
-	files, _ := ioutil.ReadDir("../../D7024E/DATA")
+	files, _ := ioutil.ReadDir(filepath)
 	for _, file := range files {
 		fmt.Println("FILE IN DATA: ", file.Name())
 		if file.Name() == m.msg.TargetHash {

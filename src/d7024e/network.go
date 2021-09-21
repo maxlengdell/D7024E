@@ -119,10 +119,15 @@ func cliParser(msg string) Message {
 	case "get":
 		fmt.Println("Received get")
 		resp = Message{
-			Type: "get",
+			Type:       "get",
+			TargetHash: cmds[1],
 		}
 	case "exit":
 		fmt.Println("Received exit")
+		resp = Message{
+			Type: "exit",
+		}
+	default:
 		resp = Message{
 			Type: "exit",
 		}
