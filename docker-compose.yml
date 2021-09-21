@@ -35,7 +35,11 @@ services:
       - "bootstrap"
     deploy:
       mode: replicated
+<<<<<<< Updated upstream
       replicas: 5
+=======
+      replicas: 4
+>>>>>>> Stashed changes
 #        resources:
 #           limits:
 #              cpus: "0.1"

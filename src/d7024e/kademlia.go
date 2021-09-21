@@ -247,11 +247,10 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 	net := Network{table}
 	kadem := Kademlia{net, nil}
 
-	knownID, err := kadem.Net.SendPingMessage(&knownContact)
-	//_, err := SendPingMessage(&knownContact)
-	//knownID := ""
+	knownMsg, err := kadem.Net.SendPingMessage(&knownContact)
+	knownID := knownMsg.SenderContact.ID
 
-	bootstrapContact := NewContact(NewKademliaID(knownID), knownIP+":"+strconv.Itoa(port))
+	bootstrapContact := NewContact(knownID, knownIP+":"+strconv.Itoa(port))
 	if err == nil {
 		net.table.AddContact(bootstrapContact)
 	}
@@ -266,15 +265,39 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 
 	return &kadem
 }
+func (kademlia *Kademlia) updateBuckets(senderContact *Contact) {
+	bucketIndex := kademlia.Net.table.getBucketIndex(senderContact.ID)
+	fmt.Println("bucketIndex", bucketIndex)
+	if kademlia.Net.table.buckets[0].Len() < bucketSize {
+		//Bucket is not full
+		kademlia.Net.table.AddContact(*senderContact)
+	} else {
+		headContact := kademlia.Net.table.buckets[bucketIndex].list.Front().Value.(Contact)
+		fmt.Println("headContact: ", headContact)
+		pingResp, err := kademlia.Net.SendPingMessage(&headContact)
+		fmt.Println("ping response: ", pingResp, err)
+		if pingResp.Type == "ping" {
+			//Ignore new contact
+		} else {
+			//Drop headContact
+			//Add senderContact at tail
+			//kademlia.Net.table.buckets[bucketIndex].list
+		}
+		//Bucket is full
+		//ping node at the head of bucket
+		//if that fails to respons -> remove from list
 
+	}
+}
 func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 	for {
 		var m = <-msgChan
 		fmt.Println("Internal message recieved:", m.msg.Type)
+		//kademlia.updateBuckets(&m.msg.SenderContact)
 		switch m.msg.Type {
 		case "ping":
-			fmt.Println("Adding ping sender to contacts", m.msg.SenderContact.Address)
 			kademlia.Net.table.AddContact(m.msg.SenderContact)
+			fmt.Println("Adding ping sender to contacts", m.msg.SenderContact.Address)
 			go kademlia.Net.SendPingAckMessage(&m.conn, &m.remoteAddr)
 		case "LookUpNode":
 			go kademlia.HandleFindNode(m)
