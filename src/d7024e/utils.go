@@ -1,6 +1,8 @@
 package d7024e
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -45,4 +47,20 @@ func trace(fname string, args ...interface{}) func() {
 		end := time.Since(start)
 		log.Printf("Exited %s(%s) after (%.3fs)\n", fname, s, end.Seconds())
 	}
+}
+
+func Add(slice []Contact, val Contact) []Contact {
+	var returnArr []Contact
+	_, check := Find(slice, val)
+	if !check {
+		returnArr = append(slice, val)
+		return returnArr
+	} else {
+		return slice
+	}
+}
+func Hash(data []byte) string {
+	//Hash data to sha1 and return
+	sh := sha1.Sum(data)
+	return hex.EncodeToString(sh[:])
 }

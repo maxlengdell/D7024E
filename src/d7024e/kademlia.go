@@ -1,8 +1,6 @@
 package d7024e
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -132,17 +130,18 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 
 	for i, node := range alpha1 { //Alpha 1
 		fmt.Println("FIND_NODE Looping neighbour: ", i, node.Address)
-		go kademlia.Net.SendFindContactMessage(target, &node, contactChan, removeChan)
+		knownContact := node
+		go kademlia.Net.SendFindContactMessage(target, &knownContact, contactChan, removeChan)
 		visitedNodes = append(visitedNodes, node)
 	}
 
 	for i, _ := range alpha1 {
-		fmt.Println("in loop alpha1")
+		//fmt.Println("in loop alpha1")
 		select {
 		case recievedContacts := <-contactChan: //Recieved responses from findContactMessage
 			for _, contact := range recievedContacts {
 				//TODO: only add unique contacts
-				shortlist = append(shortlist, contact)
+				shortlist = Add(shortlist, contact)
 				fmt.Println("Recieved contact: ", i, contact)
 			}
 		case removeContact := <-removeChan:
@@ -160,16 +159,18 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 		alpha2Channel := make(chan []Contact, len(alpha2))
 		alpha2TimeoutChannel := make(chan Contact, 1)
 
-		for j, node := range alpha2 { //Alpha 2
-			fmt.Println("in loop alpha2", j, node.Address)
-			go kademlia.Net.SendFindContactMessage(target, &node, alpha2Channel, alpha2TimeoutChannel)
+		for _, node := range alpha2 { //Alpha 2
+			//fmt.Println("in loop alpha2", j, node.Address)
+			knownContact := node
+			go kademlia.Net.SendFindContactMessage(target, &knownContact, alpha2Channel, alpha2TimeoutChannel)
 			visitedNodes = append(visitedNodes, node)
 		}
-		fmt.Println("HERE!!")
 	loop:
 		for {
-			fmt.Println("Before select")
-
+			if len(alpha2) == 0 {
+				fmt.Println("Alpha2: ", alpha2)
+				break loop
+			}
 			select {
 
 			case recievedContacts := <-alpha2Channel:
@@ -177,7 +178,7 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 					contact.CalcDistance(kademlia.Net.table.me.ID)
 					fmt.Println("Appending alpha 2: ", closestNode)
 					//TODO Only add unique
-					shortlist = append(shortlist, contact)
+					shortlist = Add(shortlist, contact)
 					if contact.Less(&closestNode) {
 						closestNode = contact
 						madeProgress = true
@@ -191,7 +192,6 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 			case <-time.After(time.Duration(timeoutDur) * time.Second):
 				fmt.Println("*********TIMEOUT duration alpha 2********")
 				break loop
-
 			}
 		}
 		if len(shortlist) >= bucketSize {
@@ -199,8 +199,6 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 			break
 		}
 	}
-	//fmt.Println("shortlist: ", shortlist, "closest node: ", closestNode)
-
 	retChan <- shortlist
 }
 
@@ -305,7 +303,8 @@ func (kademlia *Kademlia) Store(data []byte) {
 
 	fmt.Println("Neighbours for store", neighbours, "hash of data: ", Hash(data))
 	for _, node := range neighbours {
-		go kademlia.Net.SendStoreMessage(&node, data, returnChan)
+		knownContact := node
+		go kademlia.Net.SendStoreMessage(&knownContact, data, returnChan)
 	}
 	returnMsg := <-returnChan
 	fmt.Println("Store message: ", returnMsg)
@@ -316,7 +315,14 @@ func (kademlia *Kademlia) HandleStoreData(data []byte, conn net.UDPConn, retAddr
 	//Skicka tillbaka om det gick bra att spara. Terminerar om det ej går att spara.
 	WriteToFile(data, Hash(data))
 	kademlia.HashStorage = append(kademlia.HashStorage, Hash(data))
-	conn.WriteToUDP([]byte("OK: Message stored"+kademlia.Net.table.me.Address), &retAddr)
+	m := Message{
+		Type:          "store-ack",
+		SenderContact: kademlia.Net.table.me,
+		TargetHash:    Hash(data),
+	}
+	msg, _ := json.Marshal(m)
+
+	conn.WriteToUDP(msg, &retAddr)
 }
 func (kademlia *Kademlia) HandleFindNode(m InternalMessage) {
 	resp := Message{
@@ -348,10 +354,4 @@ func (kademlia *Kademlia) HandleFindData(m InternalMessage) {
 	handleErr(err)
 	m.conn.WriteToUDP(jsonMsg, &m.remoteAddr)
 	fmt.Println("Returned closest contacts to target: ", m.msg.TargetContact.Address, "neighbours: ", resp.ReturnContacts)
-}
-
-func Hash(data []byte) string {
-	//Hash data to sha1 and return
-	sh := sha1.Sum(data)
-	return hex.EncodeToString(sh[:])
 }

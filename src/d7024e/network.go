@@ -196,7 +196,8 @@ func SendJSONMessage(conn *net.UDPConn, msg []byte) ([]byte, error) {
 	_, err := conn.Write(msg)
 	fmt.Println("Connection: ", conn.LocalAddr(), conn.RemoteAddr())
 	response := make([]byte, 2048)
-	return response, err
+	n, _ := conn.Read(response)
+	return []byte(string(response[:n])), err
 }
 
 // PingMessage takes a contact and returns a ping Message.
@@ -269,7 +270,7 @@ func (network *Network) SendFindContactMessage(contact *Contact, knownContact *C
 	// FIND_NODE request to bootstrap node
 	var MessageRecv Message
 	recv := make([]byte, 2048)
-
+	fmt.Println("Known contact: ", knownContact.Address)
 	//fmt.Println("SENDING FIND CONTACT", knownContact, contact.ID)
 
 	l, err := net.Dial("udp", knownContact.Address)
