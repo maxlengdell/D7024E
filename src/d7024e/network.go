@@ -98,6 +98,7 @@ func Listen(ip string, port int, msgChan chan InternalMessage) error {
 		}
 		//fmt.Printf("\nReceived Listen: %#v \n", m)
 		//go network.handleMessage(&m, l, remoteAddr)
+
 		fmt.Println("Received Listen:", m.Type, m.SenderContact.Address)
 		fmt.Println("Sending to handle ")
 		msgChan <- InternalMessage{m, *l, *remoteAddr}
@@ -221,12 +222,14 @@ func SendPingMessage(contact *Contact) (Message, error) {
 	return SendMessage(contact, msg)
 }
 
-func (network *Network) SendPingMessage(contact *Contact) (string, error) {
+func (network *Network) SendPingMessage(contact *Contact) (Message, error) {
 	// contact is assumed to be another node, not self.
 	recv := make([]byte, 2048)
 	addr := contact.Address
 
 	l, err := net.Dial("udp", addr)
+	l.SetDeadline(time.Now().Add(time.Duration(timeoutDur) * time.Second))
+
 	defer l.Close()
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
@@ -245,19 +248,16 @@ func (network *Network) SendPingMessage(contact *Contact) (string, error) {
 		fmt.Println("SENT PING TO: " + addr)
 	}
 
-	for {
-		n, _ := l.Read(recv)
-		var m Message
-		json.Unmarshal([]byte(string(recv[:n])), &m)
+	n, readErr := l.Read(recv)
+	var mReceive Message
+	json.Unmarshal([]byte(string(recv[:n])), &mReceive)
 
-		fmt.Println("Confirmed alive", string(recv))
-		network.table.AddContact(m.SenderContact)
-		if m.Type == "ping" {
-			return m.SenderContact.ID.String(), nil
-		}
-		break
+	fmt.Println("Confirmed alive", string(recv))
+	network.table.AddContact(m.SenderContact)
+	if mReceive.Type == "ping" {
+		return mReceive, readErr
 	}
-	return "", writeErr
+	return mReceive, readErr
 }
 
 func (network *Network) SendPingAckMessage(l *net.UDPConn, remoteAddr *net.UDPAddr) {

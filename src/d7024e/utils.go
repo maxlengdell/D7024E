@@ -21,6 +21,9 @@ func RemoveContact(shortlist []Contact, contact Contact) []Contact {
 	return result
 }
 
+// func RemoveContact() {
+// 	//TODO
+// }
 func WriteToFile(data []byte, filename string) {
 	err := ioutil.WriteFile(filepath+filename, data, 0644)
 	handleErr(err)
