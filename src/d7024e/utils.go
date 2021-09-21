@@ -1,6 +1,10 @@
 package d7024e
 
-import "os"
+import (
+	"crypto/sha1"
+	"encoding/hex"
+	"os"
+)
 
 var filepath string = "/app/filestorage/"
 
@@ -24,4 +28,19 @@ func Find(slice []Contact, val Contact) (int, bool) {
 		}
 	}
 	return -1, false
+}
+func Add(slice []Contact, val Contact) []Contact {
+	var returnArr []Contact
+	_, check := Find(slice, val)
+	if !check {
+		returnArr = append(slice, val)
+		return returnArr
+	} else {
+		return slice
+	}
+}
+func Hash(data []byte) string {
+	//Hash data to sha1 and return
+	sh := sha1.Sum(data)
+	return hex.EncodeToString(sh[:])
 }
