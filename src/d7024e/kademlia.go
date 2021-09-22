@@ -64,7 +64,7 @@ func (kademlia *Kademlia) LookupData(hash string, retContactChan chan []Contact,
 			retDataChan <- recievedData
 			return
 		case removeContact := <-removeChan:
-			fmt.Println("*********FIND_DATA TIMEOUT alpha 1********")
+			fmt.Println("========= FIND_DATA TIMEOUT alpha 1 ========")
 			RemoveContact(shortlist, removeContact)
 			//Remove node from shortlist
 			break
@@ -101,7 +101,7 @@ func (kademlia *Kademlia) LookupData(hash string, retContactChan chan []Contact,
 				retDataChan <- recievedData
 				return
 			case removeContact := <-alpha2TimeoutChannel:
-				fmt.Println("*********TIMEOUT alpha2********")
+				fmt.Println("========= TIMEOUT alpha2 ========")
 				RemoveContact(shortlist, removeContact)
 				break loop
 			}
