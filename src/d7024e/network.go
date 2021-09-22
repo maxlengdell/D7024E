@@ -100,7 +100,6 @@ func Listen(ip string, port int, msgChan chan InternalMessage) error {
 		//go network.handleMessage(&m, l, remoteAddr)
 
 		fmt.Println("Received Listen:", m.Type, m.SenderContact.Address)
-		fmt.Println("Sending to handle ")
 		msgChan <- InternalMessage{m, *l, *remoteAddr}
 	}
 	return nil
@@ -127,6 +126,12 @@ func cliParser(msg string) Message {
 		fmt.Println("Received exit")
 		resp = Message{
 			Type: "exit",
+		}
+	case "test":
+		fmt.Println("Received exit")
+		resp = Message{
+			Type: "test",
+			Data: []byte(cmds[1]),
 		}
 	default:
 		resp = Message{
