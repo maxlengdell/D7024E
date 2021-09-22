@@ -253,7 +253,7 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 		kadem.Net.table.AddContact(node)
 	}
 	fmt.Println("############## ------ Join network contact chan ------- ############", closeNodes)
-
+	//Update buckets further away
 	return &kadem
 }
 func (kademlia *Kademlia) updateBuckets(senderContact *Contact) {
@@ -264,20 +264,24 @@ func (kademlia *Kademlia) updateBuckets(senderContact *Contact) {
 		//Bucket is not full
 		kademlia.Net.table.AddContact(*senderContact)
 	} else {
-		headContact := kademlia.Net.table.buckets[bucketIndex].list.Front().Value.(Contact)
+		//Bucket is full
+		//ping node at the head of bucket
+		//if that fails to respons -> remove from list
+		head := kademlia.Net.table.buckets[bucketIndex].list.Back()
+		headContact := head.Value.(Contact)
 		fmt.Println("headContact: ", headContact)
 		pingResp, err := kademlia.Net.SendPingMessage(&headContact)
 		fmt.Println("ping response: ", pingResp, err)
 		if pingResp.Type == "ping" {
 			//Ignore new contact
+
 		} else {
+			kademlia.Net.table.buckets[bucketIndex].list.Remove(head)          //Drop headContact
+			kademlia.Net.table.buckets[bucketIndex].AddContact(*senderContact) //Add senderContact at tail
+
 			//Drop headContact
 			//Add senderContact at tail
-			//kademlia.Net.table.buckets[bucketIndex].list
 		}
-		//Bucket is full
-		//ping node at the head of bucket
-		//if that fails to respons -> remove from list
 
 	}
 }
