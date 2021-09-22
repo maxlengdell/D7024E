@@ -5,6 +5,7 @@ package main
 import (
 	"net"
 	"strings"
+	"time"
 
 	d7024e "github.com/maxlengdell/D7024E/d7024e"
 )
@@ -22,6 +23,7 @@ func main() {
 		kademlia = d7024e.Bootstrap(localIP, 8080)
 
 	} else {
+		time.Sleep(5 * time.Second)
 		kademlia = d7024e.JoinNetwork(firstIP, localIP, 8080)
 	}
 	kademlia.HandleMessage(msgChan)

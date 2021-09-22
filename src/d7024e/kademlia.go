@@ -11,12 +11,10 @@ import (
 )
 
 type Kademlia struct {
-	Net         Network
-	HashStorage []string
+	Net Network
 }
 
 var numberOfParallelRequests int = 3
-var timeoutDur int = 1
 
 func chooseNContacts(shortlist, visited []Contact, n int) []Contact {
 	var returnArr []Contact
@@ -48,19 +46,21 @@ func (kademlia *Kademlia) LookupData(hash string, retContactChan chan []Contact,
 
 	for i, node := range alpha1 { //Alpha 1
 		fmt.Println("FIND_DATA Looping neighbour: ", i, node.Address)
-		go kademlia.Net.SendFindDataMessage(hash, &node, contactChan, removeChan, dataChan)
-		visitedNodes = append(visitedNodes, node)
+		knownContact := node
+		go kademlia.Net.SendFindDataMessage(hash, &knownContact, contactChan, removeChan, dataChan)
+		visitedNodes = append(visitedNodes, knownContact)
 	}
 	for i, _ := range alpha1 {
 		fmt.Println("FIND_DATA in loop alpha1")
 		select {
-		case recievedContacts := <-contactChan: //Recieved responses from findContactMessage
-			for _, contact := range recievedContacts {
-				shortlist = append(shortlist, contact)
-				fmt.Println("FIND_DATA Recieved contact: ", i, contact)
+		case receivedContacts := <-contactChan: //received responses from findContactMessage
+			for _, contact := range receivedContacts {
+				shortlist = Add(shortlist, contact)
+				fmt.Println("FIND_DATA received contact: ", i, contact)
 			}
-		case recievedData := <-dataChan:
-			retDataChan <- recievedData
+		case receivedData := <-dataChan:
+			fmt.Println("========== Received in lookup data", receivedData)
+			retDataChan <- receivedData
 			return
 		case removeContact := <-removeChan:
 			fmt.Println("========= FIND_DATA TIMEOUT alpha 1 ========")
@@ -80,28 +80,32 @@ func (kademlia *Kademlia) LookupData(hash string, retContactChan chan []Contact,
 
 		for j, node := range alpha2 { //Alpha 2
 			fmt.Println("in loop alpha2", j)
-			go kademlia.Net.SendFindDataMessage(hash, &node, alpha2Channel, alpha2TimeoutChannel, alpha2DataChannel)
-			visitedNodes = append(visitedNodes, node)
+			knownContact := node
+			go kademlia.Net.SendFindDataMessage(hash, &knownContact, alpha2Channel, alpha2TimeoutChannel, alpha2DataChannel)
+			visitedNodes = append(visitedNodes, knownContact)
 		}
 	loop:
 		for {
 			select {
-			case recievedContacts := <-alpha2Channel:
-				for _, contact := range recievedContacts {
+			case receivedContacts := <-alpha2Channel:
+				for _, contact := range receivedContacts {
 					contact.CalcDistance(kademlia.Net.table.me.ID)
 					fmt.Println("Appending alpha 2: ", closestNode)
-					shortlist = append(shortlist, contact)
+					shortlist = Add(shortlist, contact)
 					if contact.Less(&closestNode) {
 						closestNode = contact
 						madeProgress = true
 					}
 				}
-			case recievedData := <-alpha2DataChannel:
-				retDataChan <- recievedData
+			case receivedData := <-alpha2DataChannel:
+				retDataChan <- receivedData
 				return
 			case removeContact := <-alpha2TimeoutChannel:
 				fmt.Println("========= TIMEOUT alpha2 ========")
 				RemoveContact(shortlist, removeContact)
+				break loop
+			case <-time.After(timeoutDur):
+				fmt.Println("*********TIMEOUT duration alpha 2********")
 				break loop
 			}
 		}
@@ -123,36 +127,31 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 	var closestNode Contact = shortlist[0]
 
 	var alpha1 []Contact = chooseNContacts(shortlist, visitedNodes, numberOfParallelRequests)
-	fmt.Println("FIND_NODE Shortlist: ", len(shortlist), "nContacts: ", alpha1)
 
 	contactChan := make(chan []Contact, len(alpha1))
 	removeChan := make(chan Contact, 1)
 
-	for i, node := range alpha1 { //Alpha 1
-		fmt.Println("FIND_NODE Looping neighbour: ", i, node.Address)
+	for _, node := range alpha1 { //Alpha 1
+
 		knownContact := node
 		go kademlia.Net.SendFindContactMessage(target, &knownContact, contactChan, removeChan)
 		visitedNodes = append(visitedNodes, knownContact)
 	}
 
-	for i, _ := range alpha1 {
-		//fmt.Println("in loop alpha1")
+	for range alpha1 {
 		select {
-		case recievedContacts := <-contactChan: //Recieved responses from findContactMessage
-			for _, contact := range recievedContacts {
+		case receivedContacts := <-contactChan: //received responses from findContactMessage
+			for _, contact := range receivedContacts {
 				//TODO: only add unique contacts
 				shortlist = Add(shortlist, contact)
-				fmt.Println("Recieved contact: ", i, contact)
 			}
 		case removeContact := <-removeChan:
-			fmt.Println("*********TIMEOUT alpha 1********")
 			//Remove node from shortlist
 			RemoveContact(shortlist, removeContact)
 			break
 		}
 	}
 	var madeProgress bool = true
-	fmt.Println("Made Progress print", visitedNodes, shortlist)
 	for madeProgress {
 		madeProgress = false
 		var alpha2 []Contact = chooseNContacts(shortlist, visitedNodes, numberOfParallelRequests)
@@ -160,7 +159,6 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 		alpha2TimeoutChannel := make(chan Contact, 1)
 
 		for _, node := range alpha2 { //Alpha 2
-			//fmt.Println("in loop alpha2", j, node.Address)
 			knownContact := node
 			go kademlia.Net.SendFindContactMessage(target, &knownContact, alpha2Channel, alpha2TimeoutChannel)
 			visitedNodes = append(visitedNodes, knownContact)
@@ -168,15 +166,13 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 	loop:
 		for {
 			if len(alpha2) == 0 {
-				fmt.Println("Alpha2: ", alpha2)
 				break loop
 			}
 			select {
 
-			case recievedContacts := <-alpha2Channel:
-				for _, contact := range recievedContacts {
+			case receivedContacts := <-alpha2Channel:
+				for _, contact := range receivedContacts {
 					contact.CalcDistance(kademlia.Net.table.me.ID)
-					fmt.Println("Appending alpha 2: ", closestNode)
 					shortlist = Add(shortlist, contact)
 					if contact.Less(&closestNode) {
 						closestNode = contact
@@ -184,17 +180,14 @@ func (kademlia *Kademlia) LookupContact(target *Contact, retChan chan []Contact)
 					}
 				}
 			case removeContact := <-alpha2TimeoutChannel:
-				fmt.Println("*********TIMEOUT alpha2********")
 				RemoveContact(shortlist, removeContact)
 				break loop
 
-			case <-time.After(time.Duration(timeoutDur) * time.Second):
-				fmt.Println("*********TIMEOUT duration alpha 2********")
+			case <-time.After(timeoutDur):
 				break loop
 			}
 		}
 		if len(shortlist) >= bucketSize {
-			fmt.Println("Shortlist size exceeded bucketsize")
 			break
 		}
 	}
@@ -217,7 +210,7 @@ func Bootstrap(ip string, port int) (kademlia *Kademlia) {
 	fmt.Println("My id: ", myContact.ID.String())
 	table := NewRoutingTable(myContact)
 	net := Network{table}
-	kadem := Kademlia{net, nil}
+	kadem := Kademlia{net}
 	return &kadem
 
 }
@@ -243,11 +236,11 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 	fmt.Println("My id: ", myContact.ID.String())
 	table := NewRoutingTable(myContact)
 	net := Network{table}
-	kadem := Kademlia{net, nil}
+	kadem := Kademlia{net}
 
 	knownMsg, err := kadem.Net.SendPingMessage(&knownContact)
 	knownID := knownMsg.SenderContact.ID
-	fmt.Println("Known Contact: ", knownMsg.SenderContact)
+	fmt.Println("Boostrap Contact: ", knownMsg.SenderContact.Address)
 	bootstrapContact := NewContact(knownID, knownIP+":"+strconv.Itoa(port))
 	if err == nil {
 		net.table.AddContact(bootstrapContact)
@@ -291,7 +284,7 @@ func (kademlia *Kademlia) updateBuckets(senderContact *Contact) {
 func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 	for {
 		var m = <-msgChan
-		fmt.Println("Internal message recieved:", m.msg.Type)
+		fmt.Println("Internal message received:", m.msg.Type)
 		if !(m.msg.Type == "put" || m.msg.Type == "get" || m.msg.Type == "exit" || m.msg.Type == "test") {
 			kademlia.updateBuckets(&m.msg.SenderContact)
 		}
@@ -303,14 +296,15 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 		case "LookUpData":
 			go kademlia.HandleFindData(m)
 		case "StoreData":
-			fmt.Println("StoreData RECIEVED:", m.msg)
+			fmt.Println("StoreData received:", m.msg)
 			go kademlia.HandleStoreData(m.msg.Data, m.conn, m.remoteAddr)
 		case "put":
 			fmt.Println("Store data", m.msg)
 			go kademlia.Store(m.msg.Data, m.conn, m.remoteAddr)
 		case "get":
 			fmt.Println("Get data")
-			go kademlia.HandleFindData(m)
+			//go kademlia.HandleFindData(m)
+			go kademlia.Locate(m.msg.TargetHash, m.conn, m.remoteAddr)
 		case "exit":
 			//Kill network object
 			fmt.Println("Quitting node...")
@@ -340,12 +334,26 @@ func (kademlia *Kademlia) Store(data []byte, conn net.UDPConn, remoteAddr net.UD
 	fmt.Println("Store message: ", returnMsg)
 	conn.WriteToUDP([]byte(returnMsg.TargetHash+"\n"), &remoteAddr)
 }
+func (kademlia *Kademlia) Locate(targetHash string, conn net.UDPConn, remoteAddr net.UDPAddr) {
+
+	//kanaler
+	returnData := make(chan string, 3)
+	returnContact := make(chan []Contact, 3)
+	kademlia.LookupData(targetHash, returnContact, returnData)
+	select {
+	case receivedContact := <-returnContact:
+		fmt.Println("Received contact: ", receivedContact)
+	case receivedData := <-returnData:
+		fmt.Println("Received data: ", receivedData)
+		conn.WriteToUDP([]byte(receivedData+"\n"), &remoteAddr)
+	}
+}
 
 func (kademlia *Kademlia) HandleStoreData(data []byte, conn net.UDPConn, retAddr net.UDPAddr) {
 	//Spara data till fil med hash som namn.
 	//Skicka tillbaka om det gick bra att spara. Terminerar om det ej går att spara.
 	WriteToFile(data, Hash(data))
-	kademlia.HashStorage = append(kademlia.HashStorage, Hash(data))
+	//kademlia.HashStorage = append(kademlia.HashStorage, Hash(data))
 	m := Message{
 		Type:          "store-ack",
 		SenderContact: kademlia.Net.table.me,
@@ -381,9 +389,9 @@ func (kademlia *Kademlia) HandleFindData(m InternalMessage) {
 				Data: content,
 			}
 			fmt.Println("MATCH!!!!!!!!!!!!!! ", string(resp.Data))
-			//jsonMsg, err := json.Marshal(resp)
-			//handleErr(err)
-			m.conn.WriteToUDP([]byte(resp.Data), &m.remoteAddr)
+			jsonMsg, err := json.Marshal(resp)
+			handleErr(err)
+			m.conn.WriteToUDP(jsonMsg, &m.remoteAddr)
 			return
 		}
 	}
