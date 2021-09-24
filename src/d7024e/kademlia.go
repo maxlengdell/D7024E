@@ -245,23 +245,28 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 	if err == nil {
 		net.table.AddContact(bootstrapContact)
 	}
-	//fmt.Println("Known contact node: ", bootstrapContact)
-	//net.SendFindContactMessage(&myContact, &knownContact, contactChan)
-
 	closeNodes := kadem.FindNode(&kadem.Net.table.me)
 	for _, node := range closeNodes {
 		kadem.Net.table.AddContact(node)
 	}
 	fmt.Println("############## ------ Join network contact chan ------- ############", closeNodes)
 	//Update buckets further away
+
 	return &kadem
 }
-func (kademlia *Kademlia) updateBuckets(senderContact *Contact) {
-
+func (kademlia *Kademlia) updateBuckets() {
+	/*
+	* After this, the joining node refreshes all k-buckets further away than the k-bucket the bootstrap node falls in.
+	* This refresh is just a lookup of a random key that is within that k-bucket range
+	 */
+}
+func (kademlia *Kademlia) updateContact(senderContact *Contact) {
+	//Use channels
 	bucketIndex := kademlia.Net.table.getBucketIndex(senderContact.ID)
 	fmt.Println("bucketIndex", bucketIndex)
-	if kademlia.Net.table.buckets[0].Len() < bucketSize {
+	if kademlia.Net.table.buckets[bucketIndex].Len() < bucketSize {
 		//Bucket is not full
+		fmt.Println("Bucket not full")
 		kademlia.Net.table.AddContact(*senderContact)
 	} else {
 		//Bucket is full
@@ -290,7 +295,7 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 		var m = <-msgChan
 		fmt.Println("Internal message received:", m.msg.Type)
 		if !(m.msg.Type == "put" || m.msg.Type == "get" || m.msg.Type == "exit" || m.msg.Type == "test") {
-			kademlia.updateBuckets(&m.msg.SenderContact)
+			go kademlia.updateContact(&m.msg.SenderContact)
 		}
 		switch m.msg.Type {
 		case "ping":

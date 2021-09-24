@@ -3,6 +3,7 @@ package main
 //Docker attach shell
 //docker exec -it upbeat_dewdney /bin/sh
 import (
+	"fmt"
 	"net"
 	"strings"
 	"time"
@@ -19,6 +20,7 @@ func main() {
 	go d7024e.Listen(localIP, 1010, msgChan) //CLI
 
 	if localIP == firstIP {
+		fmt.Println("Bootstrap node")
 		//Enter bootstrap sequence
 		kademlia = d7024e.Bootstrap(localIP, 8080)
 
