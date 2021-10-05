@@ -13,7 +13,7 @@ import (
 
 func main() {
 	localIP := getadress()
-	firstIP := "172.18.0.2"
+	firstIP := localIP[:len(localIP)-2] + ".2"
 	var kademlia *d7024e.Kademlia
 	msgChan := make(chan d7024e.InternalMessage)
 	go d7024e.Listen(localIP, 8080, msgChan) //External comm

@@ -250,16 +250,32 @@ func JoinNetwork(knownIP string, myip string, port int) (kademlia *Kademlia) {
 		kadem.Net.table.AddContact(node)
 	}
 	fmt.Println("############## ------ Join network contact chan ------- ############", closeNodes)
+	go kadem.updateBuckets(&bootstrapContact)
 	//Update buckets further away
 
 	return &kadem
 }
-func (kademlia *Kademlia) updateBuckets() {
+func (kademlia *Kademlia) updateBuckets(bootstrap *Contact) {
 	/*
 	* After this, the joining node refreshes all k-buckets further away than the k-bucket the bootstrap node falls in.
 	* This refresh is just a lookup of a random key that is within that k-bucket range
+	* Ska detta ligga här? Har väl ingenting med joining att göra?
 	 */
+	 bootstrapBucketIndex := kademlia.Net.table.getBucketIndex(bootstrap.ID)
+	 fmt.Println("--------------------Bootstrap",bootstrap.ID,"bucket index", bootstrapBucketIndex)
+	 kademlia.updateBucketI(0)
 }
+
+func (kademlia *Kademlia) updateBucketI(i int) {
+	myID := kademlia.Net.table.me.ID
+	bucketIID := newKademliaIDForBucketI(myID, i)
+	tempContact := NewContact(bucketIID, "")
+	closeNodes := kademlia.FindNode(&tempContact)
+	for _, node := range closeNodes {
+		kademlia.Net.table.AddContact(node)
+	}
+}
+
 func (kademlia *Kademlia) updateContact(senderContact *Contact) {
 	//Use channels
 	bucketIndex := kademlia.Net.table.getBucketIndex(senderContact.ID)
@@ -324,6 +340,7 @@ func (kademlia *Kademlia) HandleMessage(msgChan chan InternalMessage) {
 			fmt.Println("Hash: ", Hash(m.msg.Data))
 			m.conn.WriteToUDP(msg, &m.remoteAddr)
 		}
+		//UpdateBuckets()
 
 	}
 }

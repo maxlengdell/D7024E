@@ -35,6 +35,34 @@ func NewRandomKademliaID() *KademliaID {
 	return &newKademliaID
 }
 
+//Create a new kademliaID which will be in bucket i according to myID
+func newKademliaIDForBucketI(myID *KademliaID, i int) *KademliaID{
+	lookupID := []byte{}
+	rand.Seed(time.Now().UnixNano())
+	for k,e := range myID {
+		if k >= i/8 {
+			break
+		}
+		//fmt.Println("--------------------",e, "k",k,"i", i/8)
+		lookupID = append(lookupID, e)
+	}
+	//fmt.Println("--------------------myID1",myID,"newID:", lookupID,"i",i,"IDLength",IDLength)
+	for j := i/8; j<IDLength; j = j + 1 {
+		//fmt.Println("----------------------------J",j)
+		randomByte := uint8(rand.Intn(256))
+		lookupID = append(lookupID, randomByte)
+	}
+	//fmt.Println("--------------------myID2",myID,"bucket",i)
+	
+	res := KademliaID{}
+	for i,_ := range lookupID {
+		res[i] = lookupID[i]
+	}
+	//fmt.Println("--------------------NEWKADEMLIAID:", &res)
+	return &res
+}
+
+
 // Less returns true if kademliaID < otherKademliaID (bitwise)
 func (kademliaID KademliaID) Less(otherKademliaID *KademliaID) bool {
 	for i := 0; i < IDLength; i++ {
